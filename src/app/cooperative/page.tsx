@@ -129,7 +129,7 @@ export default function CooperativeDashboard() {
             </tr>
           </thead>
           <tbody>
-            {lots.map((lot, idx) => {
+            {lotsAttente.map((lot, idx) => {
               const isEnAttente = lot.statut === 'en_attente_coop' || lot.statut === 'enregistre';
               const isValide = lot.statut === 'valide' || lot.statut === 'eudrConforme';
               const isRejete = lot.statut === 'rejete';
