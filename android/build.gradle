@@ -22,6 +22,13 @@ allprojects {
         google()
         mavenCentral()
     }
+    configurations.all {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            if (details.requested.group == 'com.android.tools.build' && details.requested.name == 'gradle') {
+                details.useVersion '8.13.0'
+            }
+        }
+    }
 }
 
 task clean(type: Delete) {
