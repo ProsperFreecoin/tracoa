@@ -79,6 +79,15 @@ export default function RegisterScreen() {
   /* ── Validation étape 1 ── */
   const validateStep1 = () => {
     if (!prenom.trim() || !nom.trim()) { setError("Prénom et nom obligatoires."); return false; }
+    
+    // Validation téléphone (Standard international E.164)
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    const cleanPhone = telephone.replace(/\s/g, '');
+    if (telephone && !phoneRegex.test(cleanPhone)) {
+      setError("Le téléphone doit être au format international (ex: +22890000000).");
+      return false;
+    }
+    
     return true;
   };
 
@@ -201,6 +210,7 @@ export default function RegisterScreen() {
             <Field label="Téléphone">
               <input type="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)}
                 className={inputCls} placeholder="+228 90 00 00 00" />
+              <p className="text-[9px] text-tracao-choco-pale mt-1 font-medium">Format international requis (ex: +228...)</p>
             </Field>
 
             <Field label="Région">
