@@ -209,6 +209,7 @@ export default function NouveauLotScreen() {
 
       const newLot = await ajouterLot({
         agriculteurId: agriculteur.id,
+        agriculteurNom: `${agriculteur.prenom} ${agriculteur.nom}`,
         cooperativeId: selectedCooperativeId || undefined,
         typeProduit: typeProduit,
         poidsKg: parseFloat(poidsKg),

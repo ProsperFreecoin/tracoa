@@ -12,9 +12,8 @@ export default function CooperativeDashboard() {
   const { agriculteur, estConnecte } = useAgriculteur();
   const { lots, chargerLotsCooperative, accepterLot, refuserLot } = useLots();
   
-  const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [motifRejet, setMotifRejet] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingIds, setProcessingIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!estConnecte) {
@@ -36,11 +35,19 @@ export default function CooperativeDashboard() {
   const traçabilite = lots.length > 0 ? Math.round((lotsValides.length / lots.length) * 100) : 0;
   const alertesGps = 3; // Fausse donnée pour la maquette
 
-  const handleAccepter = async (lotId: string, lotAgriculteurId: string) => {
-    setIsProcessing(true);
+  const handleAccepter = async (lotId: string, lotAgriculteurId: string, agriculteurNom?: string) => {
+    setProcessingIds(prev => [...prev, lotId]);
     try {
       const coopDjangoId = await syncUserToDjango(agriculteur);
-      const fakeFarmer = { id: lotAgriculteurId, prenom: "Agriculteur", nom: lotAgriculteurId.substring(0,5), email: `${lotAgriculteurId}@tracao.local`, secteur: "Producteur", certifie: false };
+      const farmerNom = agriculteurNom || "Agriculteur";
+      const fakeFarmer = { 
+        id: lotAgriculteurId, 
+        prenom: farmerNom.split(' ')[0], 
+        nom: farmerNom.split(' ')[1] || "", 
+        email: `${lotAgriculteurId}@tracao.local`, 
+        secteur: "Producteur", 
+        certifie: false 
+      };
       const producerDjangoId = await syncUserToDjango(fakeFarmer as any);
 
       if (!coopDjangoId || !producerDjangoId) {
@@ -52,7 +59,7 @@ export default function CooperativeDashboard() {
     } catch (e: any) {
       alert("Erreur lors de la validation: " + e.message);
     } finally {
-      setIsProcessing(false);
+      setProcessingIds(prev => prev.filter(id => id !== lotId));
     }
   };
 
@@ -68,7 +75,7 @@ export default function CooperativeDashboard() {
     } catch (e) {
       alert("Erreur lors du refus");
     } finally {
-      setIsProcessing(false);
+      setProcessingIds(prev => prev.filter(id => id !== selectedLotId));
     }
   };
 
@@ -134,7 +141,7 @@ export default function CooperativeDashboard() {
                   <td className="py-6 pr-4 font-mono font-medium text-[#825026] text-sm break-all w-[100px]">
                     {lot.lotId.replace('-', '-\n')}
                   </td>
-                  <td className="py-6 pr-4 font-semibold">{lot.agriculteurId.substring(0, 10)}...</td>
+                  <td className="py-6 pr-4 font-semibold">{lot.agriculteurNom || lot.agriculteurId.substring(0, 10) + "..."}</td>
                   <td className="py-6 pr-4 font-semibold">{lot.poidsKg} <br/><span className="text-xs text-[#A8886A]">kg</span></td>
                   <td className="py-6 pr-4">
                     {hasGpsAlert ? (
@@ -171,14 +178,14 @@ export default function CooperativeDashboard() {
                     {isEnAttente && (
                       <div className="flex gap-2 justify-end">
                         <button 
-                          disabled={isProcessing}
-                          onClick={() => handleAccepter(lot.lotId, lot.agriculteurId)}
+                          disabled={processingIds.includes(lot.lotId)}
+                          onClick={() => handleAccepter(lot.lotId, lot.agriculteurId, lot.agriculteurNom)}
                           className="bg-[#825026] text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-[#5d3a1a] transition-colors whitespace-nowrap disabled:opacity-50"
                         >
-                          Accepter
+                          {processingIds.includes(lot.lotId) ? "Validation..." : "Accepter"}
                         </button>
                         <button 
-                          disabled={isProcessing}
+                          disabled={processingIds.includes(lot.lotId)}
                           onClick={() => setSelectedLotId(lot.lotId)}
                           className="bg-white text-[#825026] border border-[#825026] px-3 py-2.5 rounded-lg font-bold text-sm hover:bg-[#FDF9F1] transition-colors whitespace-nowrap disabled:opacity-50"
                         >

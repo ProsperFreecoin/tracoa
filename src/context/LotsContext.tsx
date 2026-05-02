@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Lot, LotStatut, TypeProduit, Notification, Cooperative } from '../types';
+import { getDoc } from "firebase/firestore";
 import { collection, getDocs, query, where, setDoc, doc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface LotsContextType {
   lots: Lot[];
@@ -15,7 +17,7 @@ interface LotsContextType {
   lotsEnAttente: number;
   lotsSyncronises: number;
   lotsRecents: Lot[];
-  ajouterLot: (params: Omit<Lot, 'id' | 'lotId' | 'dateEnregistrement' | 'statut' | 'syncBlockchain'>) => Promise<Lot>;
+  ajouterLot: (params: Omit<Lot, 'id' | 'lotId' | 'dateEnregistrement' | 'statut' | 'syncBlockchain'> & { agriculteurNom: string }) => Promise<Lot>;
   chargerDonneesDemo: (agriculteurId: string) => Promise<void>;
   chargerLotsCooperative: (cooperativeId: string) => Promise<void>;
   trouverParId: (lotId: string) => Lot | undefined;
@@ -30,23 +32,31 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Charger automatiquement les lots de l'utilisateur connecté
   useEffect(() => {
-    const saved = localStorage.getItem('tracao_lots');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setLots(parsed);
-      } catch (e) {
-        console.error(e);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Récupérer le profil pour savoir s'il est coopérative ou producteur
+        const docSnap = await getDoc(doc(db, "agriculteurs", user.uid));
+        if (docSnap.exists()) {
+          const profile = docSnap.data();
+          if (profile.secteur === "Coopérative") {
+            await chargerLotsCooperative(user.uid);
+          } else {
+            await chargerDonneesDemo(user.uid);
+          }
+        }
+      } else {
+        // Réinitialiser les lots à la déconnexion
+        setLots([]);
       }
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (lots.length > 0) {
-      localStorage.setItem('tracao_lots', JSON.stringify(lots));
-    }
-  }, [lots]);
+  // Ne plus utiliser localStorage de manière globale pour éviter les mélanges entre utilisateurs.
+  // Les données seront chargées dynamiquement via Firebase selon l'ID de l'utilisateur.
 
   const genererLotId = () => {
     const annee = new Date().getFullYear();
@@ -74,7 +84,8 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
         statut: 'en_attente_coop',
         photoPath: params.photoPath,
         notesQualite: params.notesQualite,
-        syncBlockchain: false, // Ne sera vrai qu'après validation
+        agriculteurNom: params.agriculteurNom,
+        syncBlockchain: false,
       };
 
       await setDoc(lotRef, lot);

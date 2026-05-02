@@ -37,6 +37,7 @@ export interface Lot {
   notesQualite?: string;
   blockchainTxHash?: string;
   syncBlockchain: boolean;
+  agriculteurNom?: string;
   motifRejet?: string;
 }
 
