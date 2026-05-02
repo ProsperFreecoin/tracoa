@@ -269,10 +269,10 @@ export default function CooperativeDashboard() {
                 </button>
                 <button 
                   type="submit"
-                  disabled={isProcessing || !motifRejet.trim()}
+                  disabled={(selectedLotId ? processingIds.includes(selectedLotId) : false) || !motifRejet.trim()}
                   className="flex-1 py-3 bg-[#A63A44] text-white font-bold rounded-xl hover:bg-red-800 transition-colors disabled:opacity-50"
                 >
-                  {isProcessing ? "Traitement..." : "Confirmer le refus"}
+                  {(selectedLotId ? processingIds.includes(selectedLotId) : false) ? "Traitement..." : "Confirmer le refus"}
                 </button>
               </div>
             </form>
