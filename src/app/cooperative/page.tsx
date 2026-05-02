@@ -12,6 +12,7 @@ export default function CooperativeDashboard() {
   const { agriculteur, estConnecte } = useAgriculteur();
   const { lots, chargerLotsCooperative, accepterLot, refuserLot } = useLots();
   
+  const [selectedLotId, setSelectedLotId] = useState<string | null>(null);
   const [motifRejet, setMotifRejet] = useState("");
   const [processingIds, setProcessingIds] = useState<string[]>([]);
 
@@ -67,7 +68,7 @@ export default function CooperativeDashboard() {
     e.preventDefault();
     if (!selectedLotId || !motifRejet.trim()) return;
     
-    setIsProcessing(true);
+    setProcessingIds(prev => [...prev, selectedLotId]);
     try {
       await refuserLot(selectedLotId, motifRejet);
       setSelectedLotId(null);
