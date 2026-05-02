@@ -31,7 +31,8 @@ export default function CooperativeDashboard() {
   // Stats
   const lotsAttente = lots.filter(l => l.statut === 'en_attente_coop' || l.statut === 'enregistre');
   const lotsValides = lots.filter(l => l.statut === 'valide' || l.statut === 'eudrConforme' || l.statut === 'exporte');
-  
+  // Ajoutez cette ligne avec vos autres états (useState)
+  const [isProcessing, setIsProcessing] = useState(false);
   const totalWeight = lots.reduce((acc, curr) => acc + curr.poidsKg, 0) / 1000; // t
   const traçabilite = lots.length > 0 ? Math.round((lotsValides.length / lots.length) * 100) : 0;
   const alertesGps = 3; // Fausse donnée pour la maquette
