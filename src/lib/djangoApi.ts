@@ -1,6 +1,6 @@
 import { Agriculteur, Lot } from "../types";
 
-const DJANGO_API_BASE = process.env.NEXT_PUBLIC_DJANGO_API_BASE || "http://127.0.0.1:8000/api";
+const DJANGO_API_BASE = "https://tracoa.onrender.com/api";
 
 /**
  * Enregistre silencieusement un utilisateur Firebase dans Django (Agriculteur ou Coopérative)
