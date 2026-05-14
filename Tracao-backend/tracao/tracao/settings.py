@@ -93,7 +93,8 @@ DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
-        ssl_require=False if os.getenv('DEBUG', 'False') == 'True' else True
+        # On désactive ssl_require en local avec SQLite car SQLite ne supporte pas cet argument
+        ssl_require=False if os.getenv('DATABASE_URL') is None or 'sqlite' in os.getenv('DATABASE_URL', 'sqlite') else True
     )
 }
 
@@ -142,6 +143,16 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# Media
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+MEDIA_URL = '/media/'
+
 # CORS Settings
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Frontend configuration for Magic Links
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')

@@ -19,7 +19,7 @@ from stock.models import (
 class UserCreationForm(BaseUserCreationForm):
     class Meta:
         model = TracaoUser
-        fields = ["email", "first_name", "last_name", "phone_number", "country", "city"]
+        fields = ["email", "first_name", "last_name", "phone_number", "country"]
 
 
 class UserChangeForm(BaseUserChangeForm):
@@ -34,24 +34,36 @@ class UserAdmin(BaseUserAdmin):
     add_form = UserCreationForm
 
     list_display = [
-        "email", "first_name", "last_name", "phone_number", "country", "city",
-        "is_transporter", "is_producer", "is_cooperative_source", "is_cooperative_destination",
-        "is_exporter", "is_certifier", "is_eu_importer", "is_government",
+        "email", "first_name", "last_name", "phone_number", "country",
+        "is_transporter", "is_farmer", "is_buyer", "is_store",
+        "is_transformer", "is_private_buyer",
         "is_staff", "is_active", "created_at",
     ]
     list_filter = [
-        "is_transporter", "is_producer",
-        "is_cooperative_source", "is_cooperative_destination",
-        "is_exporter", "is_certifier", "is_eu_importer", "is_government",
+        "is_transporter", "is_farmer", "is_buyer",
+        "is_store", "is_transformer", "is_private_buyer",
         "is_staff", "is_superuser", "is_active",
     ]
 
     fieldsets = [
         (None, {"fields": ["email", "password"]}),
-        ("Informations personnelles", {"fields": ["first_name", "last_name", "cooperative_name", "phone_number", "country", "city"]}),
-        ("Rôles métier", {"fields": [
-            "is_transporter", "is_producer", "is_cooperative_source", "is_cooperative_destination",
-            "is_exporter", "is_certifier", "is_eu_importer", "is_government"
+        ("Individuel (Farmer / Buyer)", {"fields": [
+            "first_name", "last_name", "cooperative_name",
+            "phone_number", "country", "situation_geo",
+        ]}),
+        ("Organisation / Entreprise", {"fields": [
+            "org_name", "address", "certification",
+            "person_to_call", "ptc_number",
+            "record_number", "tax_number",
+            "legal_number", "website",
+        ]}),
+        ("Magasin", {"fields": [
+            "store_name", "store_address", "store_certification",
+        ]}),
+        ("Rôles", {"fields": [
+            "is_transporter", "is_farmer", "is_buyer",
+            "is_transformer", "is_private_buyer", "is_store",
+            "hired_by",
         ]}),
         ("Permissions", {"fields": ["is_staff", "is_active", "is_superuser", "groups", "user_permissions"]}),
         ("Dates", {"fields": ["last_login"], "classes": ["collapse"]}),
@@ -62,17 +74,16 @@ class UserAdmin(BaseUserAdmin):
             "classes": ["wide"],
             "fields": [
                 "email", "password1", "password2",
-                "first_name", "last_name", "cooperative_name",
-                "phone_number", "country", "city",
-                "is_transporter", "is_producer",
-                "is_cooperative_source", "is_cooperative_destination",
-                "is_exporter", "is_certifier", "is_eu_importer", "is_government",
+                "first_name", "last_name",
+                "phone_number", "country",
+                "is_farmer", "is_buyer", "is_store",
+                "is_transformer", "is_private_buyer", "is_transporter",
                 "is_staff", "is_active",
             ],
         }),
     ]
 
-    search_fields = ["email", "first_name", "last_name", "cooperative_name"]
+    search_fields = ["email", "first_name", "last_name", "org_name", "store_name"]
     ordering = ["email"]
     filter_horizontal = ["groups", "user_permissions"]
     readonly_fields = ["last_login"]
