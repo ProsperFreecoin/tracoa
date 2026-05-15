@@ -19,6 +19,29 @@ export interface Agriculteur {
   kycDocumentUrl?: string;     // URL recto de la pièce d'identité
   kycDocumentVersoUrl?: string;// URL verso de la pièce d'identité
   kycSoumisLe?: string;        // ISO date de soumission KYC
+
+  // Nouveaux champs Backend Django
+  djangoId?: number;           // ID interne Django
+  isVerified?: boolean;        // Email vérifié (OTP)
+  
+  // Champs Organisation (Entreprise / Institution)
+  orgName?: string;
+  personToCall?: string;
+  ptcNumber?: string;
+  address?: string;
+  country?: string;
+  
+  // Entreprise
+  recordNumber?: string;
+  taxNumber?: string;
+  
+  // Institution
+  legalNumber?: string;
+  website?: string;
+  
+  // Magasin
+  storeName?: string;
+  storeAddress?: string;
 }
 
 export interface Lot {

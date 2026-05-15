@@ -51,8 +51,31 @@ export default function LoginScreen() {
     setIsLoading(true);
     setError("");
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      await handleAuthSuccess(userCredential.user);
+      // 1. Connexion Django (Source de vérité pour le Smart Contract)
+      const { loginUser } = await import("../../lib/djangoApi");
+      const tokens = await loginUser(email, password);
+      
+      // 2. Connexion Firebase (Pour Firestore et Notifications)
+      // On tente Firebase si possible, mais on ne bloque pas si ça échoue (on a le token Django)
+      let user;
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        user = userCredential.user;
+        await handleAuthSuccess(user);
+      } catch (fbErr) {
+        console.warn("Firebase login failed, using Django session only:", fbErr);
+        // Si Firebase échoue mais Django a réussi, on crée un profil minimal local
+        const minimalProfile = {
+          id: tokens.user_id || email, // On espère que le token contient l'ID
+          email,
+          nom: "Utilisateur",
+          prenom: "",
+          certifie: false,
+          secteur: "Inconnu"
+        };
+        await connecter(minimalProfile as any, tokens.access);
+      }
+      
     } catch (err: any) {
       console.error(err);
       setError("Email ou mot de passe incorrect.");
@@ -75,11 +98,14 @@ export default function LoginScreen() {
   };
 
   return (
-    <div className="flex flex-col flex-1 p-6 bg-tracao-cream h-screen justify-center">
-      <div className="text-center mb-10">
-        <img src="/icon-192.png" alt="Tracao Logo" className="w-20 h-20 mx-auto mb-4 object-contain" />
-        <h1 className="text-3xl font-bold text-tracao-cacao tracking-tight">Tracao</h1>
-        <p className="text-tracao-choco-light mt-2 text-sm">Traçabilité de votre récolte</p>
+    <div className="flex flex-col flex-1 p-6 bg-tracao-cream h-screen justify-center relative">
+      <Link href="/" className="absolute top-8 left-6 flex items-center gap-3 text-tracao-cacao font-bold hover:opacity-70 transition-opacity">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </Link>
+
+      <div className="text-center mb-10 mt-12">
+        <h1 className="text-3xl font-extrabold text-tracao-choco tracking-tight">Bienvenue</h1>
+        <p className="text-tracao-choco-light mt-2 text-sm">Connectez-vous pour gérer vos récoltes</p>
       </div>
 
       <div className="bg-tracao-cream-light p-6 rounded-2xl shadow-sm border border-tracao-border-light">

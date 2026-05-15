@@ -22,8 +22,14 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.png",
+    shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
+  openGraph: {
+    title: "Tracao · Traçabilité Cacao-Café",
+    description: "Application de traçabilité blockchain pour agriculteurs togolais",
+    images: ["/favicon.png"],
+  }
 };
 
 export const viewport: Viewport = {

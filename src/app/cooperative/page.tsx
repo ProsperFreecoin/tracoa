@@ -17,16 +17,12 @@ export default function CooperativeDashboard() {
   const [processingIds, setProcessingIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!estConnecte) {
-      router.push("/login");
-    } else if (agriculteur?.secteur !== "Coopérative") {
-      router.push("/");
-    } else {
+    if (estConnecte && (agriculteur?.secteur === "Coopérative" || agriculteur?.secteur === "Magasin/Boutique")) {
       chargerLotsCooperative(agriculteur.id);
     }
   }, [estConnecte, agriculteur, router]);
 
-  if (!agriculteur || agriculteur.secteur !== "Coopérative") return null;
+  if (!agriculteur || (agriculteur.secteur !== "Coopérative" && agriculteur.secteur !== "Magasin/Boutique")) return null;
 
   // Stats
   const lotsAttente = lots.filter(l => l.statut === 'en_attente_coop' || l.statut === 'enregistre');

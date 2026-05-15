@@ -1,6 +1,6 @@
 from ninja_extra import api_controller,route
 from ninja_extra.permissions import IsAuthenticated,AllowAny,IsAdminUser
-from ninja import File
+from ninja import File, Form
 from ninja.files import UploadedFile
 from user.schemas import (
     FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister, CreateTransporter,
@@ -50,7 +50,7 @@ class UserController:
     @route.post("/company_signup", response=CompanyList)
     def register_company(
         self,
-        data: CompanyRegister,
+        data: CompanyRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
         user_data = data.model_dump()
@@ -70,7 +70,7 @@ class UserController:
     @route.post("/institution_signup", response=InstitutionList)
     def register_institution(
         self,
-        data: InstitutionRegister,
+        data: InstitutionRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
         user_data = data.model_dump()
@@ -90,7 +90,7 @@ class UserController:
     @route.post("/store_signup", response=StoreList)
     def register_store(
         self,
-        data: StoreRegister,
+        data: StoreRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
         user_data = data.model_dump()

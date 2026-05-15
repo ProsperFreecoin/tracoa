@@ -19,9 +19,9 @@ export default function NouveauLotScreen() {
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCooperativeId, setSelectedCooperativeId] = useState<string | null>(null);
-  const [availableCooperatives, setAvailableCooperatives] = useState<any[]>([]);
-  const [isLoadingCoops, setIsLoadingCoops] = useState(false);
+  const [selectedMagasinId, setSelectedMagasinId] = useState<string | null>(null);
+  const [availableMagasins, setAvailableMagasins] = useState<any[]>([]);
+  const [isLoadingMagasins, setIsLoadingMagasins] = useState(false);
 
   // Form state
   const [typeProduit, setTypeProduit] = useState<TypeProduit | null>(null);
@@ -53,37 +53,36 @@ export default function NouveauLotScreen() {
 
   // --- Fetch Cooperatives when component mounts ---
   useEffect(() => {
-    const fetchCoops = async () => {
-      setIsLoadingCoops(true);
+    const fetchMagasins = async () => {
+      setIsLoadingMagasins(true);
       try {
-        const q = query(collection(db, "agriculteurs"), where("secteur", "==", "Coopérative"));
+        const q = query(collection(db, "agriculteurs"), where("secteur", "==", "Magasin/Boutique"));
         const snapshot = await getDocs(q);
-        const coops: any[] = [];
+        const stores: any[] = [];
         snapshot.forEach((doc) => {
-          coops.push({ id: doc.id, ...doc.data() });
+          stores.push({ id: doc.id, ...doc.data() });
         });
 
-        // Fallback default coop if empty
-        if (coops.length === 0) {
-          coops.push({
-            id: "default-coop",
-            nom: "Coopérative Agri-Togo",
-            region: "Plateaux",
+        if (stores.length === 0) {
+          stores.push({
+            id: "default-store",
+            nom: "Magasin Central Lomé",
+            region: "Maritime",
           });
         }
-        setAvailableCooperatives(coops);
+        setAvailableMagasins(stores);
       } catch (error) {
-        console.error("Erreur lors de la récupération des coopératives", error);
-        setAvailableCooperatives([{
-          id: "default-coop",
-          nom: "Coopérative Agri-Togo",
-          region: "Plateaux",
+        console.error("Erreur lors de la récupération des magasins", error);
+        setAvailableMagasins([{
+          id: "default-store",
+          nom: "Magasin Central Lomé",
+          region: "Maritime",
         }]);
       } finally {
-        setIsLoadingCoops(false);
+        setIsLoadingMagasins(false);
       }
     };
-    fetchCoops();
+    fetchMagasins();
   }, []);
 
   // --- Paste anywhere on the page (Ctrl+V / Cmd+V) ---
@@ -210,7 +209,7 @@ export default function NouveauLotScreen() {
       const newLot = await ajouterLot({
         agriculteurId: agriculteur.id,
         agriculteurNom: `${agriculteur.prenom} ${agriculteur.nom}`,
-        cooperativeId: selectedCooperativeId || undefined,
+        cooperativeId: selectedMagasinId || undefined,
         typeProduit: typeProduit,
         poidsKg: parseFloat(poidsKg),
         latitude: gpsCoords.lat,
@@ -508,57 +507,57 @@ export default function NouveauLotScreen() {
 
         {step === 5 && (
           <div className="animate-in slide-in-from-right pb-10">
-            <h2 className="text-xl font-bold text-tracao-choco mb-2">Choisir une coopérative</h2>
+            <h2 className="text-xl font-bold text-tracao-choco mb-2">Choisir un magasin</h2>
             <p className="text-sm text-tracao-choco-light mb-4">Étape 5 sur 5</p>
             
             <div className="bg-tracao-cream-mid p-4 rounded-xl border border-tracao-border mb-6">
               <p className="text-[11px] text-tracao-choco leading-relaxed">
-                Sélectionnez la coopérative qui recevra ce lot. Nous proposons les coopératives disponibles dans votre région (**{agriculteur.region || "Togo"}**).
+                Sélectionnez le magasin qui vérifiera votre lot. Nous proposons les magasins disponibles dans votre région (**{agriculteur.region || "Togo"}**).
               </p>
             </div>
 
             <div className="space-y-3">
-              {isLoadingCoops ? (
+              {isLoadingMagasins ? (
                 <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-tracao-border text-tracao-choco-pale">
-                  <p className="text-sm font-bold">Recherche des coopératives...</p>
+                  <p className="text-sm font-bold">Recherche des magasins...</p>
                 </div>
               ) : (
                 (() => {
-                  const filtered = availableCooperatives.filter((c: any) => 
-                    !agriculteur.region || !c.region || c.region === agriculteur.region || c.id === 'default-coop'
+                  const filtered = availableMagasins.filter((c: any) => 
+                    !agriculteur.region || !c.region || c.region === agriculteur.region || c.id === 'default-store'
                   );
                   
                   if (filtered.length === 0) {
                     return (
                       <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-tracao-border text-tracao-choco-pale">
-                        <p className="text-sm font-bold">Aucune coopérative trouvée dans votre zone.</p>
-                        <p className="text-xs mt-1">Vous pouvez enregistrer le lot sans coopérative pour le moment.</p>
+                        <p className="text-sm font-bold">Aucun magasin trouvé dans votre zone.</p>
+                        <p className="text-xs mt-1">Vous pouvez enregistrer le lot sans magasin pour le moment.</p>
                       </div>
                     );
                   }
 
-                  return filtered.map((coop: any) => (
+                  return filtered.map((store: any) => (
                     <button
-                      key={coop.id}
-                      onClick={() => setSelectedCooperativeId(coop.id)}
+                      key={store.id}
+                      onClick={() => setSelectedMagasinId(store.id)}
                       className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
-                        selectedCooperativeId === coop.id 
+                        selectedMagasinId === store.id 
                         ? 'bg-white border-tracao-cacao shadow-md' 
                         : 'bg-tracao-cream-light border-transparent hover:bg-white'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-tracao-cream-mid flex items-center justify-center text-tracao-cacao font-black">
-                          {coop.nom ? coop.nom.charAt(0) : "C"}
+                          {store.nom || store.store_name ? (store.nom || store.store_name).charAt(0) : "M"}
                         </div>
                         <div className="text-left">
-                          <p className={`font-bold text-sm ${selectedCooperativeId === coop.id ? 'text-tracao-cacao' : 'text-tracao-choco'}`}>
-                            {coop.nom || "Coopérative Sans Nom"}
+                          <p className={`font-bold text-sm ${selectedMagasinId === store.id ? 'text-tracao-cacao' : 'text-tracao-choco'}`}>
+                            {store.nom || store.store_name || "Magasin Sans Nom"}
                           </p>
-                          <p className="text-[10px] text-tracao-choco-pale uppercase font-semibold">{coop.region || "Togo"}</p>
+                          <p className="text-[10px] text-tracao-choco-pale uppercase font-semibold">{store.region || store.address || "Togo"}</p>
                         </div>
                       </div>
-                      {selectedCooperativeId === coop.id && (
+                      {selectedMagasinId === store.id && (
                         <div className="w-6 h-6 bg-tracao-cacao text-white rounded-full flex items-center justify-center">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         </div>
@@ -571,16 +570,16 @@ export default function NouveauLotScreen() {
 
             <div className="mt-10 space-y-4">
               <Button fullWidth onClick={handleSubmit} disabled={isSubmitting}>
-                {isUploadingPhoto ? "Upload de la photo..." : isSubmitting ? "Enregistrement..." : "Enregistrer et notifier la coopérative"}
+                {isUploadingPhoto ? "Upload de la photo..." : isSubmitting ? "Enregistrement..." : "Enregistrer et notifier le magasin"}
               </Button>
               <button 
                 onClick={() => {
-                  setSelectedCooperativeId(null);
+                  setSelectedMagasinId(null);
                   handleSubmit();
                 }}
                 className="w-full py-3 text-xs text-tracao-choco-pale font-bold hover:text-tracao-cacao transition-colors"
               >
-                Continuer sans coopérative
+                Continuer sans magasin
               </button>
             </div>
           </div>

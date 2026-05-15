@@ -10,7 +10,7 @@ import { db, auth } from "../lib/firebase";
 interface AgriculteurContextType {
   agriculteur: Agriculteur | null;
   estConnecte: boolean;
-  connecter: (agri: Agriculteur) => Promise<void>;
+  connecter: (agri: Agriculteur, token?: string) => Promise<void>;
   deconnecter: () => Promise<void>;
   mettreAJourProfil: (infos: Partial<Agriculteur>) => Promise<void>;
 }
@@ -24,21 +24,28 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
+    // Charger depuis localStorage d'abord pour plus de réactivité
+    const savedAgri = localStorage.getItem('tracao_user');
+    if (savedAgri) {
+      setAgriculteur(JSON.parse(savedAgri));
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
           const docSnap = await getDoc(doc(db, "agriculteurs", user.uid));
           if (docSnap.exists()) {
-            setAgriculteur(docSnap.data() as Agriculteur);
-          } else {
-            // Unlikely to have user but no profile unless they just signed up via Google and handleAuthSuccess hasn't finished.
-            // We just wait, since handleAuthSuccess will call connecter() anyway.
+            const data = docSnap.data() as Agriculteur;
+            setAgriculteur(data);
+            localStorage.setItem('tracao_user', JSON.stringify(data));
           }
         } catch (e) {
           console.error("Error fetching profile:", e);
         }
-      } else {
+      } else if (!localStorage.getItem('tracao_token')) {
+        // Si pas de Firebase ET pas de token Django, on déconnecte
         setAgriculteur(null);
+        localStorage.removeItem('tracao_user');
       }
       setIsLoaded(true);
     });
@@ -49,18 +56,22 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!isLoaded) return;
     
-    const isPublicPath = pathname === '/login' || pathname === '/register';
+    const isPublicPath = pathname === '/login' || pathname === '/register' || pathname === '/' || pathname?.startsWith('/magic-link');
     
     if (!agriculteur && !isPublicPath) {
-      router.replace('/login');
-    } else if (agriculteur && isPublicPath) {
+      router.replace('/');
+    } else if (agriculteur && (pathname === '/login' || pathname === '/register')) {
       router.replace('/');
     }
   }, [agriculteur, isLoaded, pathname, router]);
 
-  const connecter = async (agri: Agriculteur) => {
+  const connecter = async (agri: Agriculteur, token?: string) => {
     setAgriculteur(agri);
+    localStorage.setItem('tracao_user', JSON.stringify(agri));
+    if (token) localStorage.setItem('tracao_token', token);
+    
     try {
+      // On continue de synchroniser avec Firebase pour la compatibilité
       await setDoc(doc(db, "agriculteurs", agri.id), agri);
     } catch (error) {
       console.error("Erreur lors de la sauvegarde dans Firebase:", error);
@@ -70,6 +81,8 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
   const deconnecter = async () => {
     await signOut(auth);
     setAgriculteur(null);
+    localStorage.removeItem('tracao_user');
+    localStorage.removeItem('tracao_token');
     router.replace('/login');
   };
   
@@ -78,12 +91,12 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
     
     const updatedAgri = { ...agriculteur, ...infos };
     setAgriculteur(updatedAgri);
+    localStorage.setItem('tracao_user', JSON.stringify(updatedAgri));
     
     try {
       await setDoc(doc(db, "agriculteurs", agriculteur.id), updatedAgri, { merge: true });
     } catch (error) {
       console.error("Erreur lors de la mise à jour du profil:", error);
-      // Rollback if needed or notify user. For now just log.
     }
   };
 

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon, ListIcon, PlusCircleIcon, SettingsIcon, HistoryIcon } from "lucide-react";
+import { useAgriculteur } from "../../context/AgriculteurContext";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { estConnecte } = useAgriculteur();
 
-  // Never show on auth pages, and on desktop (lg+) SideNav takes over
-  if (pathname === '/login' || pathname === '/register') return null;
+  // Never show on auth pages, if not connected, or on desktop (lg+) SideNav takes over
+  if (!estConnecte || pathname === '/login' || pathname === '/register') return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-tracao-cream-light border-t border-tracao-border flex justify-around items-center h-[65px] z-50 px-2 pb-safe">

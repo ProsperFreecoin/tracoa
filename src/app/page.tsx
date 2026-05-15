@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAgriculteur } from "../context/AgriculteurContext";
 import { useLots } from "../context/LotsContext";
 import { LotCard } from "../components/ui/LotCard";
+import LandingPage from "../components/LandingPage";
 import { PlusCircleIcon, QrCodeIcon, ListIcon, BarChart2Icon, HelpCircleIcon, CheckCircle2Icon, TrendingUpIcon, BellIcon } from "lucide-react";
 
 export default function DashboardScreen() {
@@ -16,12 +17,14 @@ export default function DashboardScreen() {
   const [showEUDR, setShowEUDR] = useState(false);
 
   useEffect(() => {
-    if (!estConnecte) {
-      router.push("/login");
-    } else if (agriculteur?.secteur === "Coopérative") {
+    if (estConnecte && agriculteur?.secteur === "Coopérative") {
       router.push("/cooperative");
     }
   }, [estConnecte, agriculteur, router]);
+
+  if (!estConnecte) {
+    return <LandingPage />;
+  }
 
   if (!agriculteur) return null;
 
