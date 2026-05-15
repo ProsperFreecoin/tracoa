@@ -1,6 +1,6 @@
 from ninja_extra import api_controller, route
 from ninja_extra.permissions import IsAuthenticated, AllowAny, IsAdminUser
-from ninja import File
+from ninja import File, Form
 from ninja.files import UploadedFile
 from user.schemas import (
     FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister,

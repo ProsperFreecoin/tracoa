@@ -1,7 +1,7 @@
 """
 Signals de traçabilité automatique.
 
-Chaque fois qu'un Batch ou un BatchTransfer est créé,
+Chaque fois qu'un Batch est validé ou qu'un BatchTransfer est confirmé,
 on enregistre l'événement dans TraceabilityEvent ET sur la blockchain.
 """
 from django.db.models.signals import post_save
@@ -12,19 +12,23 @@ from .blockchain import blockchain
 
 
 
-# Signal 1 : Lot créé → enregistrement blockchain
+# Signal 1 : Lot validé → enregistrement blockchain
 
 @receiver(post_save, sender=Batch)
-def on_batch_created(sender, instance, created, **kwargs):
+def on_batch_approved(sender, instance, created, **kwargs):
     """
-    Quand un nouveau lot est créé par un agriculteur,
-    on l'inscrit sur la blockchain avec ses données GPS et son type de culture.
+    Quand un lot passe au statut 'approved' (validé par la coopérative)
+    et qu'il n'est pas encore sur la blockchain, on l'inscrit avec ses 
+    données GPS et son type de culture.
     """
-    if not created:
+    # On n'inscrit sur la blockchain que si le lot est validé
+    # ET qu'il n'a pas encore de hash de transaction (pour éviter les doublons).
+    if instance.status != 'approved' or instance.blockchain_tx_hash:
         return
 
     # Récupérer les coordonnées GPS de la parcelle
     gps_data = ""
+    first_point = {}
     if instance.parcel and instance.parcel.gps_coordinates:
         coords = instance.parcel.gps_coordinates
         if coords:
@@ -57,12 +61,12 @@ def on_batch_created(sender, instance, created, **kwargs):
     TraceabilityEvent.objects.create(
         batch=instance,
         event_type='BATCH_CREATED',
-        actor=instance.farmer,
+        actor=instance.validated_by or instance.farmer,
         location_name=origin_str,
-        gps_lat=float(first_point.get('lat', 0)) if instance.parcel and instance.parcel.gps_coordinates else None,
-        gps_lng=float(first_point.get('lng', 0)) if instance.parcel and instance.parcel.gps_coordinates else None,
+        gps_lat=float(first_point.get('lat', 0)) if first_point else None,
+        gps_lng=float(first_point.get('lng', 0)) if first_point else None,
         blockchain_tx_hash=tx_hash,
-        notes=f"Lot {instance.unique_code} créé — {instance.crop_type} — {instance.estimated_quantity}kg estimés.",
+        notes=f"Lot {instance.unique_code} validé et inscrit sur la blockchain — {instance.crop_type} — {instance.estimated_quantity}kg estimés.",
     )
 
 
@@ -72,11 +76,12 @@ def on_batch_created(sender, instance, created, **kwargs):
 @receiver(post_save, sender=BatchTransfer)
 def on_batch_transfer_confirmed(sender, instance, created, **kwargs):
     """
-    Quand un BatchTransfer est créé (peu importe son statut),
-    on log immédiatement l'événement sur la blockchain.
-    Seule la création est tracée (pas les updates de statut).
+    Quand un BatchTransfer est confirmé (statut 'confirmed') par le destinataire,
+    on log l'événement sur la blockchain.
     """
-    if not created:
+    # On n'inscrit sur la blockchain que si le transfert est confirmé
+    # ET qu'il n'a pas encore été loggé (pour éviter les doublons).
+    if instance.status != 'confirmed' or instance.blockchain_tx_hash:
         return
 
     # Mapper le type de transfert vers le type d'événement de traçabilité
@@ -106,12 +111,12 @@ def on_batch_transfer_confirmed(sender, instance, created, **kwargs):
     TraceabilityEvent.objects.create(
         batch=instance.batch,
         event_type=event_type,
-        actor=instance.sender,
+        actor=instance.receiver,
         location_name=instance.location,
         blockchain_tx_hash=tx_hash,
         notes=(
-            f"{instance.get_transfer_type_display()} — "
+            f"Transfert confirmé: {instance.get_transfer_type_display()} — "
             f"{instance.quantity}kg — "
-            f"De: {instance.sender.email} → Vers: {instance.receiver.email}"
+            f"De: {instance.sender.email} → Reçu par: {instance.receiver.email}"
         ),
     )

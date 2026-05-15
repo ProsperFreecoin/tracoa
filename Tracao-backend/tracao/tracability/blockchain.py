@@ -66,9 +66,9 @@ class BlockchainService:
         self._initialized = True
         print(f"✅ Blockchain: Contrat ChainCacao déployé → {self.contract_address}")
 
-    ─
+    # ──────────────────────────────────────────────────────
     # API Publique
-    ─
+    # ──────────────────────────────────────────────────────
 
     def create_batch(
         self,
