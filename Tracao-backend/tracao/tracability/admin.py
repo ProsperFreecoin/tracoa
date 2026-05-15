@@ -1,20 +1,19 @@
 from django.contrib import admin
-from .models import ProductBatch, TransactionEvent, BatchCertification
+from .models import TraceabilityEvent, BatchCertification
 
-@admin.register(ProductBatch)
-class ProductBatchAdmin(admin.ModelAdmin):
-    list_display = ('batch_number', 'initial_stock', 'current_owner', 'is_active', 'created_at')
-    search_fields = ('batch_number',)
-    list_filter = ('is_active', 'created_at')
 
-@admin.register(TransactionEvent)
-class TransactionEventAdmin(admin.ModelAdmin):
-    list_display = ('batch', 'event_type', 'sender', 'receiver', 'timestamp')
-    search_fields = ('batch__batch_number', 'sender__email', 'receiver__email')
+@admin.register(TraceabilityEvent)
+class TraceabilityEventAdmin(admin.ModelAdmin):
+    list_display = ('batch', 'event_type', 'actor', 'location_name',
+                    'blockchain_tx_hash', 'timestamp')
+    search_fields = ('batch__unique_code', 'actor__email', 'location_name')
     list_filter = ('event_type', 'timestamp')
+    readonly_fields = ('id', 'blockchain_tx_hash', 'timestamp')
+
 
 @admin.register(BatchCertification)
 class BatchCertificationAdmin(admin.ModelAdmin):
-    list_display = ('batch', 'certifier', 'certification_name', 'issued_at')
-    search_fields = ('batch__batch_number', 'certification_name')
-    readonly_fields = ('issued_at',)
+    list_display = ('batch', 'certifier', 'certification_type', 'certification_name', 'issued_at')
+    search_fields = ('batch__unique_code', 'certification_name', 'certifier__email')
+    list_filter = ('certification_type', 'issued_at')
+    readonly_fields = ('id', 'issued_at')

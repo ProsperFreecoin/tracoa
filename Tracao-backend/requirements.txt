@@ -77,3 +77,4 @@ gunicorn==23.0.0
 whitenoise==6.9.0
 dj-database-url==2.3.0
 django-cors-headers==4.7.0
+qrcode==8.2
