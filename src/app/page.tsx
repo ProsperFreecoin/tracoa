@@ -39,7 +39,7 @@ export default function DashboardScreen() {
         <div className="flex justify-between items-start mb-6">
           <div>
             <p className="text-xs text-white/50 uppercase tracking-widest font-semibold mb-1">{dateStr}</p>
-            <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight">Bonjour, {agriculteur.prenom} <span className="animate-wave inline-block">👋</span></h1>
+            <h1 className="text-2xl lg:text-3xl font-extrabold tracking-tight">Bonjour, {agriculteur.prenom}</h1>
             <p className="text-xs text-white/60 mt-1 capitalize">{agriculteur.secteur || agriculteur.region || "Agriculteur"}</p>
           </div>
           <div className="flex items-center gap-3">

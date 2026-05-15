@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAgriculteur } from "../../context/AgriculteurContext";
+import { HomeIcon, ListIcon, PlusCircleIcon, SettingsIcon, HistoryIcon } from "lucide-react";
 
 export function BottomNav() {
   const pathname = usePathname();

@@ -59,3 +59,19 @@ body {
   transform-origin: 70% 70%;
   animation: wave 2.5s infinite;
 }
+
+.border-text-white {
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.4);
+  color: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2a856;
+  border-radius: 10px;
+}
