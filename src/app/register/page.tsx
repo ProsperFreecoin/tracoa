@@ -6,7 +6,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAgriculteur } from "../../context/AgriculteurContext";
 import { uploadImage, validateImageFile } from "../../lib/cloudinary";
-import { registerUser, verifyOTP, uploadKYC } from "../../lib/djangoApi";
+import { registerUser, verifyOTP, uploadKYC, loginWithGoogle, getCurrentUser } from "../../lib/djangoApi";
 import { GoogleLogin } from '@react-oauth/google';
 import {
   ChevronDownIcon, XIcon, UserIcon, MailIcon, LockIcon,
@@ -502,9 +502,41 @@ function RegisterContent() {
 
             <div className="flex justify-center mb-2">
               <GoogleLogin
-                onSuccess={credentialResponse => {
-                  console.log("Google Login Success:", credentialResponse);
-                  setError("Inscription Google réussie côté frontend. (Le backend doit la gérer)");
+                onSuccess={async credentialResponse => {
+                  if (credentialResponse.credential) {
+                    setIsLoading(true);
+                    setError("");
+                    try {
+                      const tokens = await loginWithGoogle(credentialResponse.credential);
+                      
+                      // Logic similar to handleAuthSuccess in login page
+                      localStorage.setItem("tracao_token", tokens.access);
+                      const user = await getCurrentUser();
+                      if (user) {
+                        const mappedAgri = {
+                          id: user.id.toString(),
+                          djangoId: user.id,
+                          nom: user.last_name || user.org_name || "Nom",
+                          prenom: user.first_name || "",
+                          email: user.email,
+                          telephone: user.phone_number,
+                          region: user.city,
+                          certifie: user.is_verified,
+                          secteur: user.is_farmer ? "Agriculteur" : 
+                                   user.is_store ? "Magasinier" : 
+                                   user.is_transformer ? "Entreprise de Transformation" : "Institution"
+                        };
+                        await connecter(mappedAgri as any, tokens.access);
+                        router.push("/");
+                      } else {
+                        setError("Erreur récupération profil Google.");
+                        setIsLoading(false);
+                      }
+                    } catch (err: any) {
+                      setError(err.message || "Erreur Google.");
+                      setIsLoading(false);
+                    }
+                  }
                 }}
                 onError={() => {
                   console.log('Login Failed');

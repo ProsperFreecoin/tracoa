@@ -20,6 +20,10 @@ class SetPasswordMagicLinkSchema(Schema):
     confirm_password: str = Field(min_length=3)
 
 
+class GoogleLoginSchema(Schema):
+    credential: str
+
+
 
 # SCHEMAS D'INSCRIPTION
 

@@ -3,10 +3,13 @@ from ninja_extra.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from ninja import File, Form
 from ninja.files import UploadedFile
 from ninja_jwt.authentication import JWTAuth
+from ninja.errors import HttpError
+import requests
+from ninja_jwt.tokens import RefreshToken
 from user.schemas import (
     FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister, CreateTransporter, CertifierRegister,
     KYCDocumentSchema, FarmerList, BuyerList, CompanyList, InstitutionList, StoreList, TransporterList, CertifierList,
-    VerifyOTPSchema, SetPasswordMagicLinkSchema, UserProfileSchema, UserSchema, NotificationSchema
+    VerifyOTPSchema, SetPasswordMagicLinkSchema, UserProfileSchema, UserSchema, NotificationSchema, GoogleLoginSchema
 )
 from user.models import TracaoUser, KYCDocument, OTP, MagicLink, Notification
 from user.utils import send_otp_email, send_magic_link_email
@@ -327,6 +330,53 @@ class UserController:
         magic_link.save()
 
         return {"message": "✅ Mot de passe défini avec succès. Vous pouvez maintenant vous connecter."}
+
+    @route.post("/google_login")
+    def google_login(self, data: GoogleLoginSchema):
+        """
+        Authentification via Google. 
+        Vérifie le jeton ID Google et connecte/crée l'utilisateur.
+        """
+        token = data.credential
+        
+        # 1. Vérification auprès de Google
+        res = requests.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
+        if not res.ok:
+            raise HttpError(400, "Jeton Google invalide.")
+        
+        google_data = res.json()
+        email = google_data.get('email')
+        first_name = google_data.get('given_name', '')
+        last_name = google_data.get('family_name', '')
+        
+        if not email:
+            raise HttpError(400, "Impossible de récupérer l'email depuis Google.")
+
+        # 2. Récupération ou création de l'utilisateur
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'first_name': first_name,
+                'last_name': last_name,
+                'is_farmer': True, # Par défaut Agriculteur si nouveau
+                'is_verified': True, # Google vérifie l'email
+                'situation_geo': "Lome" # Valeur par défaut
+            }
+        )
+        
+        # 3. Génération des tokens JWT Tracao
+        refresh = RefreshToken.for_user(user)
+        
+        return {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "is_farmer": user.is_farmer,
+                "is_store": user.is_store
+            }
+        }
 
     
     # LISTES

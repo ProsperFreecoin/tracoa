@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useAgriculteur } from "../../context/AgriculteurContext";
 import { useLots } from "../../context/LotsContext";
 import { Button } from "../../components/ui/Button";
-import { loginUser, getCurrentUser } from "../../lib/djangoApi";
+import { loginUser, getCurrentUser, loginWithGoogle } from "../../lib/djangoApi";
 import { GoogleLogin } from '@react-oauth/google';
 
 const DotsLoader = () => (
@@ -131,9 +131,24 @@ export default function LoginScreen() {
 
         <div className="flex justify-center mb-6">
           <GoogleLogin
-            onSuccess={credentialResponse => {
-              console.log("Google Login Success:", credentialResponse);
-              setError("Connexion Google réussie côté frontend. (Le backend doit la gérer)");
+            onSuccess={async credentialResponse => {
+              if (credentialResponse.credential) {
+                setIsLoading(true);
+                setError("");
+                try {
+                  const tokens = await loginWithGoogle(credentialResponse.credential);
+                  const success = await handleAuthSuccess(tokens);
+                  if (success) {
+                    router.push("/");
+                  } else {
+                    setError("Erreur lors de la récupération du profil Google.");
+                    setIsLoading(false);
+                  }
+                } catch (err: any) {
+                  setError(err.message || "La connexion Google a échoué.");
+                  setIsLoading(false);
+                }
+              }
             }}
             onError={() => {
               console.log('Login Failed');

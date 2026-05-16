@@ -39,19 +39,21 @@ export const registerUser = async (user: any, role: string, certificationFile?: 
   }
 };
 
-/** Connexion Google OAuth — échange le token Google contre un JWT Django */
-export const loginWithGoogle = async (googleToken: string): Promise<any> => {
-  const res = await fetch(`${DJANGO_API_BASE}/users/auth/google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: googleToken }),
-  });
+/** Login avec Google (Backend support) */
+export const loginWithGoogle = async (credential: string): Promise<any> => {
+  try {
+    const res = await fetch(`${DJANGO_API_BASE}/users/google_login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential })
+    });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: "Erreur connexion Google" }));
-    throw new Error(err.detail || "Erreur connexion Google");
+    if (!res.ok) throw new Error("Erreur lors de la connexion Google.");
+    return await res.json();
+  } catch (err: any) {
+    console.error("ERREUR LOGIN GOOGLE:", err);
+    throw err;
   }
-  return await res.json();
 };
 
 /** Vérifie l'OTP envoyé par email */
@@ -132,17 +134,39 @@ export const getCurrentUser = async (): Promise<any> => {
   try {
     const token = getAuthToken();
     if (!token) return null;
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    const userId = payload.user_id;
+
+    // Decode JWT to get user_id safely (SSR compatible)
+    let payload: any;
+    try {
+      const base64Url = token.split('.')[1];
+      if (!base64Url) return null;
+      
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = typeof window !== 'undefined' 
+        ? decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''))
+        : Buffer.from(base64, 'base64').toString();
+      
+      payload = JSON.parse(jsonPayload);
+    } catch (e) {
+      console.error("Erreur décodage token:", e);
+      return null;
+    }
+
+    const userId = payload?.user_id;
     if (!userId) return null;
+
     const res = await fetchWithAuth(`/users/${userId}`);
+
     if (!res.ok) {
       if (res.status === 401) {
-        localStorage.removeItem("tracao_token");
-        localStorage.removeItem("tracao_user");
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem("tracao_token");
+          localStorage.removeItem("tracao_user");
+        }
       }
       return null;
     }
+
     return await res.json();
   } catch (err) {
     console.error("ERREUR GET ME:", err);
