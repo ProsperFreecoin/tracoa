@@ -7,7 +7,7 @@ import { collection, getDocs, query, where, setDoc, doc } from "firebase/firesto
 import { db, auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useAgriculteur } from './AgriculteurContext';
-import { createParcelInDjango, createBatchInDjango } from '../lib/djangoApi';
+import { createParcelInDjango, createBatchInDjango, fetchFarmerBatches, fetchCooperativeBatches } from '../lib/djangoApi';
 
 interface LotsContextType {
   lots: Lot[];
@@ -152,6 +152,31 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
 
   const chargerDonneesDemo = async (agriculteurId: string) => {
     try {
+      // Si on a un djangoId, on charge depuis Django
+      if (agriculteur && agriculteur.djangoId) {
+        const djangoBatches = await fetchFarmerBatches(agriculteur.djangoId);
+        
+        // Mapper les données Django vers le format Lot du frontend
+        const mappedLots: Lot[] = djangoBatches.map(b => ({
+          id: b.id,
+          lotId: b.unique_code,
+          agriculteurId: agriculteurId,
+          typeProduit: b.crop_type as TypeProduit,
+          poidsKg: b.estimated_quantity,
+          latitude: 0, // Idéalement à stocker dans la parcelle
+          longitude: 0,
+          dateRecolte: b.created_at,
+          dateEnregistrement: b.created_at,
+          statut: b.status as LotStatut,
+          syncBlockchain: b.is_confirmed,
+          blockchainTxHash: b.qr_code_url, // Utilisation temporaire ou tx_hash si dispo
+        }));
+        
+        setLots(mappedLots.sort((a, b) => new Date(b.dateEnregistrement).getTime() - new Date(a.dateEnregistrement).getTime()));
+        return;
+      }
+
+      // Fallback Firebase (pour les anciens utilisateurs ou en cas d'erreur)
       const q = query(collection(db, "lots"), where("agriculteurId", "==", agriculteurId));
       const querySnapshot = await getDocs(q);
       const fetchedLots: Lot[] = [];
@@ -167,7 +192,32 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
 
   const chargerLotsCooperative = async (cooperativeId: string) => {
     try {
-      // Charger les lots qui sont assignés à cette coopérative
+      // Si on a un djangoId, on charge depuis Django
+      if (agriculteur && agriculteur.djangoId) {
+        const djangoBatches = await fetchCooperativeBatches(agriculteur.djangoId);
+        
+        // Mapper les données Django vers le format Lot du frontend
+        const mappedLots: Lot[] = djangoBatches.map(b => ({
+          id: b.id,
+          lotId: b.unique_code,
+          agriculteurId: b.farmer_id?.toString() || "",
+          typeProduit: b.crop_type as TypeProduit,
+          poidsKg: b.estimated_quantity,
+          latitude: 0,
+          longitude: 0,
+          dateRecolte: b.created_at,
+          dateEnregistrement: b.created_at,
+          statut: b.status as LotStatut,
+          syncBlockchain: b.is_confirmed,
+          blockchainTxHash: b.qr_code_url,
+          agriculteurNom: b.farmer_name || "Agriculteur",
+        }));
+        
+        setLots(mappedLots.sort((a, b) => new Date(b.dateEnregistrement).getTime() - new Date(a.dateEnregistrement).getTime()));
+        return;
+      }
+
+      // Fallback Firebase
       const q = query(collection(db, "lots"), where("cooperativeId", "==", cooperativeId));
       const querySnapshot = await getDocs(q);
       const fetchedLots: Lot[] = [];

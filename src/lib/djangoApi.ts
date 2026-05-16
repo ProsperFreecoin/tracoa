@@ -246,6 +246,34 @@ export const createBatchInDjango = async (payload: {
   }
 };
 
+/**
+ * Récupère tous les lots d'un agriculteur depuis Django
+ */
+export const fetchFarmerBatches = async (farmerId: number): Promise<any[]> => {
+  try {
+    const res = await fetch(`${DJANGO_API_BASE}/stock/batches/farmer/${farmerId}`);
+    if (!res.ok) throw new Error("Erreur récupération lots Django");
+    return await res.json();
+  } catch (err) {
+    console.error("ERREUR FETCH BATCHES:", err);
+    return [];
+  }
+};
+
+/**
+ * Récupère tous les lots assignés à une coopérative (store)
+ */
+export const fetchCooperativeBatches = async (storeId: number): Promise<any[]> => {
+  try {
+    const res = await fetch(`${DJANGO_API_BASE}/stock/batches?store_id=${storeId}`);
+    if (!res.ok) throw new Error("Erreur récupération lots coop Django");
+    return await res.json();
+  } catch (err) {
+    console.error("ERREUR FETCH COOP BATCHES:", err);
+    return [];
+  }
+};
+
 export const pushLotToDjangoBlockchain = async (
   lot: Lot,
   producerDjangoId: number,

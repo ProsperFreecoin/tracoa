@@ -24,33 +24,16 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Charger depuis localStorage d'abord pour plus de réactivité
+    // Charger depuis localStorage d'abord pour plus de réactivité (Django-First)
     const savedAgri = localStorage.getItem('tracao_user');
     if (savedAgri) {
-      setAgriculteur(JSON.parse(savedAgri));
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const docSnap = await getDoc(doc(db, "agriculteurs", user.uid));
-          if (docSnap.exists()) {
-            const data = docSnap.data() as Agriculteur;
-            setAgriculteur(data);
-            localStorage.setItem('tracao_user', JSON.stringify(data));
-          }
-        } catch (e) {
-          console.error("Error fetching profile:", e);
-        }
-      } else if (!localStorage.getItem('tracao_token')) {
-        // Si pas de Firebase ET pas de token Django, on déconnecte
-        setAgriculteur(null);
-        localStorage.removeItem('tracao_user');
+      try {
+        setAgriculteur(JSON.parse(savedAgri));
+      } catch (e) {
+        console.error("Erreur parsing localStorage:", e);
       }
-      setIsLoaded(true);
-    });
-
-    return () => unsubscribe();
+    }
+    setIsLoaded(true);
   }, []);
 
   useEffect(() => {
