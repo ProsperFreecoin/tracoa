@@ -6,7 +6,7 @@ services:
       pip install -r requirements.txt
       python tracao/manage.py collectstatic --no-input
       python tracao/manage.py migrate
-      python manage.py set_superuser
+      python tracao/manage.py set_superuser
     startCommand: gunicorn --pythonpath tracao tracao.wsgi
     envVars:
       - key: PYTHON_VERSION
