@@ -27,7 +27,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_store', False) # Magasins lacaux qui exportent ou vendent aussi aux transformateurs
         extra_fields.setdefault('is_certifier', False)  # Organismes de certification (Fairtrade, Bio EU, Rainforest Alliance)
         extra_fields.setdefault('country', 'Togo')
-        extra_fields.setdefault('city', 'Lome')
+        extra_fields.setdefault('situation_geo', 'Lome')
 
         user = self.model(
             email=email,
@@ -58,7 +58,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_store', True) # Magasins lacaux qui exportent ou vendent aussi aux transformateurs
         extra_fields.setdefault('is_certifier', True)
         extra_fields.setdefault('country', 'Togo')
-        extra_fields.setdefault('city', 'Lome')
+        extra_fields.setdefault('situation_geo', 'Lome')
 
         return self.create_user(email, password, **extra_fields)
 
