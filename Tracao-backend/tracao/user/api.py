@@ -19,15 +19,11 @@ User = TracaoUser
 
 @api_controller('/users', auth=None)
 class UserController:
-    @route.get("/me", auth=IsAuthenticated(), response=UserSchema)
-    def me(self, request):
-        return request.user
-
-    @route.get("/notifications", auth=IsAuthenticated(), response=list[NotificationSchema])
+    @route.get("/notifications", auth=JWTAuth(), response=list[NotificationSchema])
     def get_notifications(self, request):
         return Notification.objects.filter(user=request.user).order_by('-created_at')
 
-    @route.post("/notifications/{notif_id}/read", auth=IsAuthenticated())
+    @route.post("/notifications/{notif_id}/read", auth=JWTAuth())
     def mark_notif_read(self, request, notif_id: int):
         notif = get_object_or_404(Notification, id=notif_id, user=request.user)
         notif.is_read = True
