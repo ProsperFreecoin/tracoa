@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAgriculteur } from "../../context/AgriculteurContext";
 import { uploadImage, validateImageFile } from "../../lib/cloudinary";
 import { registerUser, verifyOTP, uploadKYC } from "../../lib/djangoApi";
+import { GoogleLogin } from '@react-oauth/google';
 import {
   ChevronDownIcon, XIcon, UserIcon, MailIcon, LockIcon,
   CameraIcon, IdCardIcon, CheckCircle2Icon, AlertCircleIcon,
@@ -64,7 +65,6 @@ function RegisterContent() {
   const [nom, setNom] = useState("");
   const [prenom, setPrenom] = useState("");
   const [telephone, setTelephone] = useState("");
-  const [region, setRegion] = useState("");
   const [secteur, setSecteur] = useState("Agriculteur");
   
   // Agriculteur spécifique
@@ -193,7 +193,7 @@ function RegisterContent() {
       };
 
       if (secteur === "Agriculteur" || secteur === "Acheteur Privé") {
-        userData = { ...userData, first_name: prenom, last_name: nom, situation_geo: region || "Lome" };
+        userData = { ...userData, first_name: prenom, last_name: nom };
         if (secteur === "Agriculteur") {
           userData.is_farmer = true;
           if (typeAgriculteur === "Coopérative" && coopName) {
@@ -283,7 +283,7 @@ function RegisterContent() {
         prenom: prenom || personToCall,
         email,
         telephone: telephone || ptcNumber,
-        region: region || address || storeAddress,
+        region: address || storeAddress,
         secteur,
         certifie: false,
         photoUrl,
@@ -406,10 +406,6 @@ function RegisterContent() {
                   <input type="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)}
                     className={inputCls} placeholder="+228 90 00 00 00" />
                 </Field>
-                <Field label="Ville / Région">
-                  <input type="text" value={region} onChange={(e) => setRegion(e.target.value)}
-                    className={inputCls} placeholder="Kpalimé, Lomé..." />
-                </Field>
               </>
             ) : (
               <>
@@ -497,6 +493,26 @@ function RegisterContent() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className={inputCls} placeholder="••••••••" />
             </Field>
+
+            <div className="flex items-center gap-4 my-2">
+              <div className="flex-1 h-px bg-tracao-border-light"></div>
+              <span className="text-xs font-bold text-tracao-choco-light opacity-50 uppercase tracking-wider">ou</span>
+              <div className="flex-1 h-px bg-tracao-border-light"></div>
+            </div>
+
+            <div className="flex justify-center mb-2">
+              <GoogleLogin
+                onSuccess={credentialResponse => {
+                  console.log("Google Login Success:", credentialResponse);
+                  setError("Inscription Google réussie côté frontend. (Le backend doit la gérer)");
+                }}
+                onError={() => {
+                  console.log('Login Failed');
+                  setError("La connexion avec Google a échoué.");
+                }}
+                useOneTap
+              />
+            </div>
 
             <div className="flex gap-3 mt-2">
               <button onClick={goBack} className={btnSecondary}><ArrowLeftIcon size={16} /> Retour</button>

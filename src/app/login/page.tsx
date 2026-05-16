@@ -7,6 +7,7 @@ import { useAgriculteur } from "../../context/AgriculteurContext";
 import { useLots } from "../../context/LotsContext";
 import { Button } from "../../components/ui/Button";
 import { loginUser, getCurrentUser } from "../../lib/djangoApi";
+import { GoogleLogin } from '@react-oauth/google';
 
 const DotsLoader = () => (
   <div className="flex justify-center items-center gap-1.5 h-6">
@@ -121,6 +122,26 @@ export default function LoginScreen() {
             {isLoading ? <DotsLoader /> : "Se connecter"}
           </Button>
         </form>
+
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex-1 h-px bg-tracao-border-light"></div>
+          <span className="text-xs font-bold text-tracao-choco-light opacity-50 uppercase tracking-wider">ou</span>
+          <div className="flex-1 h-px bg-tracao-border-light"></div>
+        </div>
+
+        <div className="flex justify-center mb-6">
+          <GoogleLogin
+            onSuccess={credentialResponse => {
+              console.log("Google Login Success:", credentialResponse);
+              setError("Connexion Google réussie côté frontend. (Le backend doit la gérer)");
+            }}
+            onError={() => {
+              console.log('Login Failed');
+              setError("La connexion avec Google a échoué.");
+            }}
+            useOneTap
+          />
+        </div>
 
         <div className="mt-6 text-center">
           <p className="text-sm text-tracao-choco-light">
