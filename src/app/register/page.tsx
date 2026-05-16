@@ -213,7 +213,7 @@ function RegisterContent() {
 
       const res = await registerUser(userData, secteur, certificationFile || undefined);
       setDjangoUserId(res.id);
-      goNext(); // Vers Step 3 : OTP
+      setStep(4); // Skip Step 3 (OTP) et aller directement à la Photo
     } catch (err: any) {
       let msg = "Erreur lors de l'inscription.";
       const rawMsg = err.message || "";

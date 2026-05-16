@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAgriculteur } from "../context/AgriculteurContext";
 import { useLots } from "../context/LotsContext";
 import { TypeProduit } from "../types";
@@ -9,6 +10,7 @@ import { uploadToCloudinary } from "../lib/cloudinary";
 import { NotificationService } from "../lib/notifications";
 
 export function CreateLotModal({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
   const { agriculteur } = useAgriculteur();
   const { ajouterLot } = useLots();
 
@@ -61,10 +63,24 @@ export function CreateLotModal({ onClose }: { onClose: () => void }) {
       try {
         const DJANGO_API_BASE = "https://tracoa.onrender.com/api";
         const res = await fetch(`${DJANGO_API_BASE}/users/all_stores`);
-        const stores = res.ok ? await res.json() : [];
+        let stores = res.ok ? await res.json() : [];
+        
+        // Ajouter des magasins par défaut si la liste est vide (pour le test)
+        if (stores.length === 0) {
+          stores = [
+            { id: "mock-1", store_name: "Magasin Central Lome", address: "Lome, Togo" },
+            { id: "mock-2", store_name: "Coopérative Kpalimé", address: "Kpalimé, Togo" },
+            { id: "mock-3", store_name: "Entrepôt Atakpamé", address: "Atakpamé, Togo" }
+          ];
+        }
         setAvailableMagasins(stores);
       } catch (error) {
         console.error("Erreur lors de la récupération des magasins", error);
+        // Fallback mock stores
+        setAvailableMagasins([
+          { id: "mock-1", store_name: "Magasin Central Lome", address: "Lome, Togo" },
+          { id: "mock-2", store_name: "Coopérative Kpalimé", address: "Kpalimé, Togo" }
+        ]);
       } finally {
         setIsLoadingMagasins(false);
       }
@@ -190,6 +206,7 @@ export function CreateLotModal({ onClose }: { onClose: () => void }) {
       }
 
       onClose();
+      router.push("/mes-lots");
     } catch (e: any) {
       console.error(e);
       setSubmitError(e.message || "Erreur lors de l'enregistrement.");
@@ -311,8 +328,17 @@ export function CreateLotModal({ onClose }: { onClose: () => void }) {
                   <p className="p-3 text-xs text-gray-400 text-center">Chargement...</p>
                 ) : storeNotFound ? (
                   <div className="p-3">
-                    <p className="text-xs font-semibold text-red-500">Ce magasin n&apos;existe pas sur la plateforme.</p>
-                    <p className="text-[10px] text-red-400 mt-0.5">Impossible de choisir un magasin non répertorié.</p>
+                    <p className="text-xs font-semibold text-amber-600">Ce magasin n&apos;est pas encore inscrit.</p>
+                    <button 
+                      onClick={() => {
+                        // On autorise la saisie libre pour le moment
+                        setSelectedMagasinId(null);
+                        setShowStoreDropdown(false);
+                      }}
+                      className="mt-2 w-full py-1.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded-lg border border-amber-200 hover:bg-amber-100 transition-colors"
+                    >
+                      Utiliser ce nom quand même
+                    </button>
                   </div>
                 ) : (
                   filteredStores.map((store: any) => (
