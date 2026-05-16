@@ -133,6 +133,10 @@ class BaseUserResponse(ModelSchema):
         # obj.country peut être un objet Country. On prend son code ou son nom.
         return str(obj.country)
 
+    class Meta:
+        model = TracaoUser
+        fields = []
+
 class FarmerList(BaseUserResponse):
     class Meta:
         model = TracaoUser
