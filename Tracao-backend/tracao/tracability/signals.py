@@ -1,121 +1,122 @@
+"""
+Signals de traçabilité automatique.
+
+Chaque fois qu'un Batch est validé ou qu'un BatchTransfer est confirmé,
+on enregistre l'événement dans TraceabilityEvent ET sur la blockchain.
+"""
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from stock.models import StockProducer, StockOrigin, StockTransporter, StockDestination
-from .models import ProductBatch, TransactionEvent
+from stock.models import Batch, BatchTransfer
+from .models import TraceabilityEvent
 from .blockchain import blockchain
 
-@receiver(post_save, sender=StockProducer)
-def create_batch_and_transaction_on_producer_stock(sender, instance, created, **kwargs):
-    if created:
-        # Création du lot (Batch) pour ce stock
-        batch = ProductBatch.objects.create(
-            initial_stock=instance,
-            current_owner=instance.producer
-        )
-        
-        # Enregistrer l'événement initial
-        TransactionEvent.objects.create(
-            batch=batch,
-            sender=instance.producer,
-            receiver=instance.cooperative, # Sera envoyé à la coop source
-            event_type='CREATED',
-            notes="Stock initial créé par le producteur."
-        )
 
-        # Déterminer l'origine à envoyer à la blockchain
-        origin_str = instance.origin or ""
-        if instance.farm:
-            origin_str = f"Ferme: {instance.farm.name} (GPS_ID: {instance.farm.id})"
 
-        # 🔗 Envoi à la BLOCKCHAIN
-        blockchain.create_batch(
-            batch_number=str(batch.batch_number),
-            producer_email=instance.producer.email,
-            weight=str(instance.weight),
-            origin=origin_str
-        )
+# Signal 1 : Lot validé → enregistrement blockchain
 
-@receiver(post_save, sender=StockOrigin)
-def log_transaction_on_coop_source_receive(sender, instance, created, **kwargs):
-    if created:
-        # The StockOrigin links to a StockProducer
-        try:
-            batch = instance.producer_stock.batch
-            
-            # Mettre à jour le propriétaire
-            batch.current_owner = instance.cooperative
-            batch.save()
-            
-            TransactionEvent.objects.create(
-                batch=batch,
-                sender=instance.producer_stock.producer,
-                receiver=instance.cooperative,
-                event_type='RECEIVED_SOURCE',
-                notes="Le stock a été reçu par la coopérative source."
-            )
+@receiver(post_save, sender=Batch)
+def on_batch_approved(sender, instance, created, **kwargs):
+    """
+    Quand un lot passe au statut 'approved' (validé par la coopérative)
+    et qu'il n'est pas encore sur la blockchain, on l'inscrit avec ses 
+    données GPS et son type de culture.
+    """
+    # On n'inscrit sur la blockchain que si le lot est validé
+    # ET qu'il n'a pas encore de hash de transaction (pour éviter les doublons).
+    if instance.status != 'approved' or instance.blockchain_tx_hash:
+        return
 
-            # 🔗 Envoi à la BLOCKCHAIN
-            blockchain.log_transaction(
-                batch_number=str(batch.batch_number),
-                sender_email=instance.producer_stock.producer.email,
-                receiver_email=instance.cooperative.email,
-                event_type='RECEIVED_SOURCE'
-            )
-        except ProductBatch.DoesNotExist:
-            pass
+    # Récupérer les coordonnées GPS de la parcelle
+    gps_data = ""
+    first_point = {}
+    if instance.parcel and instance.parcel.gps_coordinates:
+        coords = instance.parcel.gps_coordinates
+        if coords:
+            # On prend le premier point comme point de référence EUDR
+            first_point = coords[0] if isinstance(coords, list) else coords
+            gps_data = f"lat:{first_point.get('lat', 0)},lng:{first_point.get('lng', 0)}"
 
-@receiver(post_save, sender=StockTransporter)
-def log_transaction_on_transport(sender, instance, created, **kwargs):
-    if created:
-        try:
-            batch = instance.stock_origin.producer_stock.batch
-            
-            # Le transporteur devient "responsable" (propriétaire temporaire)
-            batch.current_owner = instance.transporter
-            batch.save()
-            
-            TransactionEvent.objects.create(
-                batch=batch,
-                sender=instance.stock_origin.cooperative,
-                receiver=instance.transporter,
-                event_type='IN_TRANSIT',
-                notes="Le produit a été remis au transporteur."
-            )
+    origin_str = (
+        f"{instance.parcel.name} — {instance.parcel.farmer.situation_geo}"
+        if instance.parcel else instance.farmer.situation_geo or "Togo"
+    )
 
-            # 🔗 Envoi à la BLOCKCHAIN
-            blockchain.log_transaction(
-                batch_number=str(batch.batch_number),
-                sender_email=instance.stock_origin.cooperative.email,
-                receiver_email=instance.transporter.email,
-                event_type='IN_TRANSIT'
-            )
-        except ProductBatch.DoesNotExist:
-            pass
+    # 🔗 Enregistrement sur la BLOCKCHAIN
+    tx_hash = blockchain.create_batch(
+        batch_id=str(instance.id),
+        unique_code=instance.unique_code,
+        farmer_email=instance.farmer.email,
+        farmer_id=str(instance.farmer.id),
+        crop_type=instance.crop_type,
+        weight=str(instance.estimated_quantity),
+        origin=origin_str,
+        gps=gps_data,
+    )
 
-@receiver(post_save, sender=StockDestination)
-def log_transaction_on_destination(sender, instance, created, **kwargs):
-    if created:
-        try:
-            batch = instance.stock_transporter.stock_origin.producer_stock.batch
-            
-            # L'exportateur devient le propriétaire final
-            batch.current_owner = instance.exporter
-            batch.save()
-            
-            TransactionEvent.objects.create(
-                batch=batch,
-                sender=instance.transporter,
-                receiver=instance.exporter,
-                event_type='RECEIVED_DESTINATION',
-                notes="Le produit a été livré à l'exportateur / destination finale."
-            )
+    # Sauvegarder le hash blockchain sur le lot
+    if tx_hash:
+        Batch.objects.filter(pk=instance.pk).update(blockchain_tx_hash=tx_hash)
 
-            # 🔗 Envoi à la BLOCKCHAIN
-            blockchain.log_transaction(
-                batch_number=str(batch.batch_number),
-                sender_email=instance.transporter.email,
-                receiver_email=instance.exporter.email,
-                event_type='RECEIVED_DESTINATION'
-            )
-        except ProductBatch.DoesNotExist:
-            pass
+    # 📋 Enregistrement dans le journal de traçabilité
+    TraceabilityEvent.objects.create(
+        batch=instance,
+        event_type='BATCH_CREATED',
+        actor=instance.validated_by or instance.farmer,
+        location_name=origin_str,
+        gps_lat=float(first_point.get('lat', 0)) if first_point else None,
+        gps_lng=float(first_point.get('lng', 0)) if first_point else None,
+        blockchain_tx_hash=tx_hash,
+        notes=f"Lot {instance.unique_code} validé et inscrit sur la blockchain — {instance.crop_type} — {instance.estimated_quantity}kg estimés.",
+    )
+
+
+
+# Signal 2 : Transfert confirmé → log blockchain
+
+@receiver(post_save, sender=BatchTransfer)
+def on_batch_transfer_confirmed(sender, instance, created, **kwargs):
+    """
+    Quand un BatchTransfer est confirmé (statut 'confirmed') par le destinataire,
+    on log l'événement sur la blockchain.
+    """
+    # On n'inscrit sur la blockchain que si le transfert est confirmé
+    # ET qu'il n'a pas encore été loggé (pour éviter les doublons).
+    if instance.status != 'confirmed' or instance.blockchain_tx_hash:
+        return
+
+    # Mapper le type de transfert vers le type d'événement de traçabilité
+    EVENT_MAP = {
+        'FARM_TO_COOP':             'RECEIVED_BY_COOP',
+        'COOP_TO_TRANSPORTER':      'IN_TRANSIT',
+        'TRANSPORTER_TO_EXPORTER':  'DELIVERED_EXPORTER',
+        'EXPORTER_TO_EU_IMPORTER':  'EXPORTED',
+        'CUSTOM':                   'RECEIVED_BY_COOP',
+    }
+    event_type = EVENT_MAP.get(instance.transfer_type, 'RECEIVED_BY_COOP')
+
+    # 🔗 Log sur la BLOCKCHAIN
+    tx_hash = blockchain.log_transfer(
+        batch_id=str(instance.batch.id),
+        unique_code=instance.batch.unique_code,
+        sender_email=instance.sender.email,
+        receiver_email=instance.receiver.email,
+        transfer_type=instance.transfer_type,
+    )
+
+    # Sauvegarder le hash blockchain sur le transfert
+    if tx_hash:
+        BatchTransfer.objects.filter(pk=instance.pk).update(blockchain_tx_hash=tx_hash)
+
+    # 📋 Journal de traçabilité
+    TraceabilityEvent.objects.create(
+        batch=instance.batch,
+        event_type=event_type,
+        actor=instance.receiver,
+        location_name=instance.location,
+        blockchain_tx_hash=tx_hash,
+        notes=(
+            f"Transfert confirmé: {instance.get_transfer_type_display()} — "
+            f"{instance.quantity}kg — "
+            f"De: {instance.sender.email} → Reçu par: {instance.receiver.email}"
+        ),
+    )

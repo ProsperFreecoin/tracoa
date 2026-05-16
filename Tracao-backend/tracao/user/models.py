@@ -25,9 +25,9 @@ class CustomUserManager(BaseUserManager):
         # extra_fields.setdefault('is_eu_buyer', False) # Entreprises européennes de transformation
         # extra_fields.setdefault('is_ue_private_buyer', False) # l'importateur privé de l'UE
         extra_fields.setdefault('is_store', False) # Magasins lacaux qui exportent ou vendent aussi aux transformateurs
-        extra_fields.setdefault('country', 'Togo')
-        extra_fields.setdefault('city', 'Lome')
-        # extra_fields.setdefault('is_certifier', False)
+        extra_fields.setdefault('is_certifier', False)  # Organismes de certification (Fairtrade, Bio EU, Rainforest Alliance)
+        extra_fields.setdefault('country', 'TG')
+        extra_fields.setdefault('situation_geo', 'Lome')
 
         user = self.model(
             email=email,
@@ -56,8 +56,9 @@ class CustomUserManager(BaseUserManager):
         # extra_fields.setdefault('is_eu_buyer', True) # Entreprises européennes de transformation
         # extra_fields.setdefault('is_ue_private_buyer', True) # l'importateur privé de l'UE
         extra_fields.setdefault('is_store', True) # Magasins lacaux qui exportent ou vendent aussi aux transformateurs
-        extra_fields.setdefault('country', 'Togo')
-        extra_fields.setdefault('city', 'Lome')
+        extra_fields.setdefault('is_certifier', True)
+        extra_fields.setdefault('country', 'TG')
+        extra_fields.setdefault('situation_geo', 'Lome')
 
         return self.create_user(email, password, **extra_fields)
 
@@ -69,7 +70,7 @@ class TracaoUser(AbstractBaseUser,PermissionsMixin):
     # Global
     email = models.EmailField(unique=True)
     phone_number = PhoneNumberField(blank=True,null=True)
-    country = CountryField(blank_label='(Sélectionnez un pays)',default="Togo",blank=True,null=True)
+    country = CountryField(blank_label='(Sélectionnez un pays)',default="TG",blank=True,null=True)
 
     # individuel ( farmer / buyer )
     cooperative_name = models.CharField(max_length=200,blank=True,null=True) # for farmer uniquement
@@ -120,6 +121,7 @@ class TracaoUser(AbstractBaseUser,PermissionsMixin):
     # is_eu_buyer = models.BooleanField(default=False)
     # is_ue_private_buyer = models.BooleanField(default=False)
     is_store = models.BooleanField(default=False)
+    is_certifier = models.BooleanField(default=False)  # Fairtrade, Bio EU, Rainforest Alliance
     
 
     

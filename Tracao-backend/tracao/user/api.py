@@ -1,11 +1,20 @@
-from ninja_extra import api_controller,route
-from ninja_extra.permissions import IsAuthenticated,AllowAny,IsAdminUser
+from ninja_extra import api_controller, route
+from ninja_extra.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from ninja import File, Form
 from ninja.files import UploadedFile
+from ninja_jwt.authentication import JWTAuth
 from user.schemas import (
+<<<<<<< HEAD
     FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister, CreateTransporter,
     KYCDocumentSchema, FarmerList, BuyerList, CompanyList, InstitutionList, StoreList, TransporterList,
     VerifyOTPSchema, SetPasswordMagicLinkSchema, UserSchema, NotificationSchema
+=======
+    FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister,
+    CreateTransporter, CertifierRegister,
+    KYCDocumentSchema, FarmerList, BuyerList, CompanyList, InstitutionList,
+    StoreList, TransporterList, CertifierList,
+    VerifyOTPSchema, SetPasswordMagicLinkSchema, UserProfileSchema,
+>>>>>>> 59cd45a21426785237ca42a4a6c56858a61b8253
 )
 from user.models import TracaoUser, KYCDocument, OTP, MagicLink, Notification
 from user.utils import send_otp_email, send_magic_link_email
@@ -15,8 +24,10 @@ from ninja.errors import HttpError
 
 User = TracaoUser
 
-@api_controller('/users',auth=None)
+
+@api_controller('/users', auth=None)
 class UserController:
+<<<<<<< HEAD
     @route.get("/me", auth=IsAuthenticated(), response=UserSchema)
     def me(self, request):
         return request.user
@@ -34,33 +45,48 @@ class UserController:
 
     @route.post("/farmer_signup",response = FarmerList)
     def register_farmer(self,user:FarmerBuyerRegister):
+=======
+
+    
+    # INSCRIPTIONS
+    
+
+    @route.post("/farmer_signup", response=FarmerList)
+    def register_farmer(self, user: FarmerBuyerRegister):
+        """Inscription d'un agriculteur. Envoie un OTP de vérification par email."""
+>>>>>>> 59cd45a21426785237ca42a4a6c56858a61b8253
         user_data = user.model_dump()
         email = user_data.get('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
-        
-        user_model, created = User.objects.get_or_create(email=email, defaults={**user_data, 'is_farmer': True, 'is_verified': False})
-        if created:
-            user_model.set_password(password)
-            user_model.save()
-            send_otp_email(user_model)
-        return user_model
-        
-    @route.post("/buyer_signup",response = BuyerList)
-    def register_buyer(self,user:FarmerBuyerRegister):
-        user_data = user.model_dump()
-        email = user_data.get('email')
-        password = user_data.pop('password')
-        user_data.pop('confirm_password')
-        
-        user_model, created = User.objects.get_or_create(email=email, defaults={**user_data, 'is_private_buyer': True, 'is_buyer': True, 'is_verified': False})
+
+        user_model, created = User.objects.get_or_create(
+            email=email,
+            defaults={**user_data, 'is_farmer': True, 'is_verified': False}
+        )
         if created:
             user_model.set_password(password)
             user_model.save()
             send_otp_email(user_model)
         return user_model
 
+    @route.post("/buyer_signup", response=BuyerList)
+    def register_buyer(self, user: FarmerBuyerRegister):
+        """Inscription d'un acheteur individuel. Envoie un OTP de vérification."""
+        user_data = user.model_dump()
+        email = user_data.get('email')
+        password = user_data.pop('password')
+        user_data.pop('confirm_password')
 
+        user_model, created = User.objects.get_or_create(
+            email=email,
+            defaults={**user_data, 'is_private_buyer': True, 'is_buyer': True, 'is_verified': False}
+        )
+        if created:
+            user_model.set_password(password)
+            user_model.save()
+            send_otp_email(user_model)
+        return user_model
 
     @route.post("/company_signup", response=CompanyList)
     def register_company(
@@ -68,11 +94,12 @@ class UserController:
         data: CompanyRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
+        """Inscription d'une entreprise locale de transformation."""
         user_data = data.model_dump()
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user = User.objects.create(**user_data, is_transformer=True, is_verified=False)
+        user = User.objects.create(**user_data, is_transformer=True, is_buyer=True, is_verified=False)
         user.set_password(password)
 
         if certification:
@@ -88,11 +115,15 @@ class UserController:
         data: InstitutionRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
+        """
+        Inscription d'une institution (Ministère Agriculture, ONG, etc.).
+        Les institutions sont des transformateurs avec numéro légal.
+        """
         user_data = data.model_dump()
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user = User.objects.create(**user_data, is_verified=False)
+        user = User.objects.create(**user_data, is_transformer=True, is_buyer=True, is_verified=False)
         user.set_password(password)
 
         if certification:
@@ -108,6 +139,10 @@ class UserController:
         data: StoreRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
+        """
+        Inscription d'un magasin / coopérative locale.
+        Les stores peuvent valider des parcelles et des lots.
+        """
         user_data = data.model_dump()
         password = user_data.pop('password')
         user_data.pop('confirm_password')
@@ -122,32 +157,45 @@ class UserController:
         send_otp_email(user)
         return user
 
-    @route.post("/verify-otp")
-    def verify_otp(self, data: VerifyOTPSchema):
-        user = get_object_or_404(User, email=data.email)
-        
-        # Trouver un OTP valide pour cet utilisateur
-        otp = OTP.objects.filter(user=user, code=data.code, is_used=False).order_by('-created_at').first()
-        
-        if not otp or not otp.is_valid():
-            raise HttpError(400, "Code invalide ou expiré.")
-            
-        # Valider l'OTP et l'utilisateur
-        otp.is_used = True
-        otp.save()
-        
-        user.is_verified = True
-        user.save()
-        
-        return {"message": "Email vérifié avec succès."}
+    @route.post("/certifier_signup", response=CertifierList)
+    def register_certifier(
+        self,
+        data: CertifierRegister,
+        certification: UploadedFile = File(None),
+    ):
+        """
+        Inscription d'un organisme de certification (Fairtrade, Bio EU, Rainforest Alliance, etc.).
+        Ces organismes sont les seuls à pouvoir certifier des lots.
+        """
+        user_data = data.model_dump()
+        password = user_data.pop('password')
+        user_data.pop('confirm_password')
 
-    # L'entité qui recrute (farmer, buyer, store, company, institution) est dans l'URL
-    # Exemple : POST /users/store/42/transporter_signup
+        user = User.objects.create(**user_data, is_certifier=True, is_verified=False)
+        user.set_password(password)
+
+        if certification:
+            user.certification = certification
+
+        user.save()
+        send_otp_email(user)
+        return user
+
+    
+    # TRANSPORTEURS
+    
+
     @route.post("/{employer_type}/{employer_id}/transporter_signup", response=TransporterList)
     def register_transporter(self, employer_type: str, employer_id: int, data: CreateTransporter):
-        from ninja.errors import HttpError
+        """
+        Inscription d'un transporteur lié à une entité employeuse.
+        Le transporteur reçoit un Magic Link par email pour définir son mot de passe.
 
-        # Types d'entités autorisés à recruter un transporter
+        URL patterns :
+        - POST /users/farmer/42/transporter_signup
+        - POST /users/store/7/transporter_signup
+        - POST /users/company/3/transporter_signup
+        """
         EMPLOYER_TYPE_MAP = {
             'farmer':      'is_farmer',
             'buyer':       'is_buyer',
@@ -156,7 +204,6 @@ class UserController:
             'institution': 'is_transformer',
         }
 
-        # 1. Vérifier que le type dans l'URL est valide
         if employer_type not in EMPLOYER_TYPE_MAP:
             raise HttpError(
                 400,
@@ -164,75 +211,116 @@ class UserController:
                 f"Valeurs acceptées : {list(EMPLOYER_TYPE_MAP.keys())}"
             )
 
-        # 2. Récupérer l'entité employeur et vérifier son rôle
         employer = get_object_or_404(User, id=employer_id)
         expected_flag = EMPLOYER_TYPE_MAP[employer_type]
         if not getattr(employer, expected_flag, False):
-            raise HttpError(
-                400,
-                f"L'utilisateur #{employer_id} n'est pas un '{employer_type}'."
-            )
+            raise HttpError(400, f"L'utilisateur #{employer_id} n'est pas un '{employer_type}'.")
 
-        # 3. Préparer les données
         user_data = data.model_dump()
-        
-        # 4. Créer le transporter et le lier à l'employeur
-        # On définit is_verified=False jusqu'à ce qu'il configure son compte via le lien magique
-        transporter = User.objects.create(**user_data, is_transporter=True, hired_by=employer, is_verified=False)
-        transporter.set_unusable_password() # Pas de mot de passe valide pour l'instant
+        transporter = User.objects.create(
+            **user_data, is_transporter=True, hired_by=employer, is_verified=False
+        )
+        transporter.set_unusable_password()
         transporter.save()
-        
-        # 5. Envoyer le lien magique
-        send_magic_link_email(transporter, employer)
 
+        send_magic_link_email(transporter, employer)
         return transporter
+
+    
+    # VÉRIFICATION OTP & MAGIC LINK
+    
+
+    @route.post("/verify-otp")
+    def verify_otp(self, data: VerifyOTPSchema):
+        """Vérifie le code OTP envoyé par email lors de l'inscription."""
+        user = get_object_or_404(User, email=data.email)
+
+        otp = OTP.objects.filter(user=user, code=data.code, is_used=False).order_by('-created_at').first()
+
+        if not otp or not otp.is_valid():
+            raise HttpError(400, "Code OTP invalide ou expiré.")
+
+        otp.is_used = True
+        otp.save()
+
+        user.is_verified = True
+        user.save()
+
+        return {"message": "✅ Email vérifié avec succès. Vous pouvez maintenant vous connecter."}
 
     @route.post("/magic-link/set-password")
     def set_password_magic_link(self, data: SetPasswordMagicLinkSchema):
+        """
+        Permet à un transporteur de définir son mot de passe via le Magic Link.
+        Valide automatiquement son compte.
+        """
         if data.new_password != data.confirm_password:
             raise HttpError(400, "Les mots de passe ne correspondent pas.")
-            
+
         magic_link = get_object_or_404(MagicLink, token_hash=data.token)
-        
+
         if not magic_link.is_valid():
             raise HttpError(400, "Le lien magique est invalide ou a expiré.")
-            
+
         user = magic_link.user
         user.set_password(data.new_password)
-        user.is_verified = True  # Le lien magique valide aussi l'email implicitement
+        user.is_verified = True
         user.save()
-        
+
         magic_link.is_used = True
         magic_link.save()
-        
-        return {"message": "Mot de passe défini avec succès. Vous pouvez maintenant vous connecter."}
 
+        return {"message": "✅ Mot de passe défini avec succès. Vous pouvez maintenant vous connecter."}
 
-    @route.get("/all_farmers",response = list[FarmerList])
+    
+    # LISTES
+    
+
+    @route.get("/all_farmers", response=list[FarmerList])
     def get_all_farmers(self):
         return User.objects.filter(is_farmer=True)
 
-    @route.get("/all_transporters",response = list[TransporterList])
+    @route.get("/all_transporters", response=list[TransporterList])
     def get_all_transporters(self):
         return User.objects.filter(is_transporter=True)
 
-    @route.get("/all_buyers",response = list[BuyerList])
+    @route.get("/all_buyers", response=list[BuyerList])
     def get_all_buyers(self):
+        # BUG CORRIGÉ : is_private_buyer (existant) au lieu de is_buyer seul
         return User.objects.filter(is_private_buyer=True)
 
-    @route.get("/all_companies",response = list[CompanyList])
+    @route.get("/all_companies", response=list[CompanyList])
     def get_all_companies(self):
-        return User.objects.filter(is_company=True)
+        # BUG CORRIGÉ : is_transformer (existant) au lieu de is_company (inexistant)
+        return User.objects.filter(is_transformer=True, legal_number__isnull=True)
 
-    @route.get("/all_institutions",response = list[InstitutionList])
+    @route.get("/all_institutions", response=list[InstitutionList])
     def get_all_institutions(self):
-        return User.objects.filter(is_institution=True)
+        # BUG CORRIGÉ : is_transformer + legal_number pour distinguer institution
+        return User.objects.filter(is_transformer=True, legal_number__isnull=False)
 
-    @route.get("/all_stores",response = list[StoreList])
+    @route.get("/all_stores", response=list[StoreList])
     def get_all_stores(self):
         return User.objects.filter(is_store=True)
 
+    @route.get("/all_certifiers", response=list[CertifierList])
+    def get_all_certifiers(self):
+        """Liste tous les organismes de certification enregistrés."""
+        return User.objects.filter(is_certifier=True)
 
+    @route.get("/{user_id}", response=UserProfileSchema)
+    def get_user_profile(self, user_id: int):
+        """Récupère le profil complet d'un utilisateur par son ID."""
+        return get_object_or_404(User, id=user_id)
+
+    @route.get("/me", response=UserProfileSchema, auth=JWTAuth())
+    def get_my_profile(self, request):
+        """Récupère le profil de l'utilisateur actuellement connecté via JWT."""
+        return request.user
+
+    
+    # KYC
+    
 
     @route.post("/kyc/upload", response=KYCDocumentSchema)
     def upload_kyc_documents(
@@ -240,27 +328,25 @@ class UserController:
         user_id: int,
         id_card_front: UploadedFile = File(...),
         id_card_back: UploadedFile = File(...),
-        selfie_photo: UploadedFile = File(...)
+        selfie_photo: UploadedFile = File(...),
     ):
-        """Permet à un utilisateur de soumettre ses documents KYC pour vérification."""
+        """Soumet les documents KYC d'un utilisateur pour vérification manuelle."""
         user = get_object_or_404(TracaoUser, id=user_id)
-        
-        # Supprime l'ancien KYC s'il existait
+
         if hasattr(user, 'kyc_document'):
             user.kyc_document.delete()
-            
+
         kyc = KYCDocument.objects.create(
             user=user,
             id_card_front=id_card_front,
             id_card_back=id_card_back,
             selfie_photo=selfie_photo,
-            status='PENDING'
+            status='PENDING',
         )
         return kyc
 
     @route.get("/kyc/status/{user_id}", response=KYCDocumentSchema)
     def get_kyc_status(self, user_id: int):
-        """Récupère le statut actuel du KYC de l'utilisateur."""
+        """Consulte le statut KYC d'un utilisateur."""
         user = get_object_or_404(TracaoUser, id=user_id)
-        kyc = get_object_or_404(KYCDocument, user=user)
-        return kyc
+        return get_object_or_404(KYCDocument, user=user)

@@ -193,7 +193,7 @@ function RegisterContent() {
       };
 
       if (secteur === "Agriculteur" || secteur === "Acheteur Privé") {
-        userData = { ...userData, first_name: prenom, last_name: nom, city: region || "Lome" };
+        userData = { ...userData, first_name: prenom, last_name: nom, situation_geo: region || "Lome" };
         if (secteur === "Agriculteur") {
           userData.is_farmer = true;
           if (typeAgriculteur === "Coopérative" && coopName) {
@@ -278,6 +278,7 @@ function RegisterContent() {
       // 3. Finaliser localement
       await connecter({
         id: djangoUserId.toString(),
+        djangoId: djangoUserId,
         nom: nom || orgName || storeName,
         prenom: prenom || personToCall,
         email,
