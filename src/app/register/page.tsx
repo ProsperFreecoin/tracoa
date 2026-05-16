@@ -531,7 +531,7 @@ function RegisterContent() {
                       localStorage.setItem("tracao_token", tokens.access);
                       const user = await getCurrentUser();
                       if (user) {
-                        const mappedAgri: Agriculteur = {
+                        const mappedAgri = {
                           id: user.id.toString(),
                           djangoId: user.id,
                           nom: user.last_name || user.org_name || "Nom",

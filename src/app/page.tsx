@@ -7,7 +7,7 @@ import { useAgriculteur } from "../context/AgriculteurContext";
 import { useLots } from "../context/LotsContext";
 import { LotCard } from "../components/ui/LotCard";
 import LandingPage from "../components/LandingPage";
-import { PlusCircleIcon, QrCodeIcon, ListIcon, BarChart2Icon, HelpCircleIcon, CheckCircle2Icon, TrendingUpIcon, BellIcon, LeafIcon, MapPinIcon, ArrowRightIcon, ShieldCheckIcon, EyeIcon, XIcon } from "lucide-react";
+import { PlusCircleIcon, QrCodeIcon, ListIcon, BarChart2Icon, HelpCircleIcon, CheckCircle2Icon, TrendingUpIcon, BellIcon, LeafIcon, MapPinIcon, ArrowRightIcon, ShieldCheckIcon, EyeIcon, XIcon, ClockIcon } from "lucide-react";
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -162,8 +162,6 @@ export default function DashboardScreen() {
             <ListIcon size={20} /> Accéder à tous mes lots
           </Link>
         </div>
-      </div>
-
       </div>
     </div>
   );
