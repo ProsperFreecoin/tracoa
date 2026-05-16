@@ -149,7 +149,7 @@ class UserController:
     def register_farmer(self, user: FarmerBuyerRegister):
         """Inscription d'un agriculteur. Envoie un OTP de vérification par email."""
         user_data = user.model_dump()
-        email = user_data.get('email')
+        email = user_data.pop('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
@@ -164,7 +164,7 @@ class UserController:
     def register_buyer(self, user: FarmerBuyerRegister):
         """Inscription d'un acheteur individuel. Envoie un OTP de vérification."""
         user_data = user.model_dump()
-        email = user_data.get('email')
+        email = user_data.pop('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
@@ -183,7 +183,7 @@ class UserController:
     ):
         """Inscription d'une entreprise locale de transformation."""
         user_data = data.model_dump()
-        email = user_data.get('email')
+        email = user_data.pop('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
@@ -206,7 +206,7 @@ class UserController:
     ):
         """Inscription d'une institution."""
         user_data = data.model_dump()
-        email = user_data.get('email')
+        email = user_data.pop('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
@@ -229,7 +229,7 @@ class UserController:
     ):
         """Inscription d'un magasin / coopérative locale."""
         user_data = data.model_dump()
-        email = user_data.get('email')
+        email = user_data.pop('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
@@ -252,7 +252,7 @@ class UserController:
     ):
         """Inscription d'un organisme de certification."""
         user_data = data.model_dump()
-        email = user_data.get('email')
+        email = user_data.pop('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
