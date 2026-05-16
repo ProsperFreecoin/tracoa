@@ -19,6 +19,80 @@ User = TracaoUser
 
 @api_controller('/users', auth=None)
 class UserController:
+
+    # ─── GOOGLE OAUTH ──────────────────────────────────────────────────────────
+
+    @route.post("/auth/google", response=dict)
+    def google_login(self, request, payload: dict):
+        """
+        Échange un token Google ID contre une paire JWT Django.
+        Le frontend Google Sign-In renvoie un 'credential' (ID token).
+        On le vérifie auprès de Google, puis on crée ou récupère l'utilisateur.
+        """
+        import requests as http_requests
+        from ninja_jwt.tokens import RefreshToken
+
+        google_token = payload.get("token")
+        if not google_token:
+            raise HttpError(400, "Token Google manquant.")
+
+        # Vérification du token auprès de Google
+        google_resp = http_requests.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": google_token},
+            timeout=5,
+        )
+
+        if google_resp.status_code != 200:
+            raise HttpError(401, "Token Google invalide.")
+
+        google_data = google_resp.json()
+
+        # Sécurité : vérifier que le token est bien destiné à notre app
+        # (client_id configuré dans les variables d'environnement)
+        import os
+        expected_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+        if expected_client_id and google_data.get("aud") != expected_client_id:
+            raise HttpError(401, "Token Google non autorisé pour cette application.")
+
+        email = google_data.get("email")
+        if not email or not google_data.get("email_verified"):
+            raise HttpError(400, "Email Google non vérifié.")
+
+        first_name = google_data.get("given_name", "")
+        last_name = google_data.get("family_name", "")
+
+        # Création ou récupération du compte Django
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                "first_name": first_name,
+                "last_name": last_name,
+                "is_verified": True,  # Google a déjà vérifié l'email
+            }
+        )
+        if created:
+            user.set_unusable_password()
+            user.save()
+
+        # Génération de la paire JWT
+        refresh = RefreshToken.for_user(user)
+        return {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "is_farmer": user.is_farmer,
+                "is_store": user.is_store,
+                "is_verified": user.is_verified,
+            },
+            "created": created,
+        }
+
+
     @route.get("/notifications", auth=JWTAuth(), response=list[NotificationSchema])
     def get_notifications(self, request):
         return Notification.objects.filter(user=request.user).order_by('-created_at')

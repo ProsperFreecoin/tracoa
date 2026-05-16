@@ -1,9 +1,14 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Lot, LotStatut, TypeProduit, Notification, Cooperative } from '../types';
+import { Lot, TypeProduit } from '../types';
 import { useAgriculteur } from './AgriculteurContext';
-import { getLotsForProducer, getLotsForCooperative, pushLotToDjangoBlockchain } from '../lib/djangoApi';
+import {
+  fetchFarmerBatches,
+  fetchCooperativeBatches,
+  createBatch,
+  updateBatchStatus,
+} from '../lib/djangoApi';
 import { NotificationService } from '../lib/notifications';
 
 interface LotsContextType {
@@ -16,7 +21,24 @@ interface LotsContextType {
   lotsEnAttente: number;
   lotsSyncronises: number;
   lotsRecents: Lot[];
-  ajouterLot: (params: Omit<Lot, 'id' | 'lotId' | 'dateEnregistrement' | 'statut' | 'syncBlockchain'> & { agriculteurNom: string }) => Promise<Lot>;
+  ajouterLot: (params: {
+    parcel_id: string;
+    season: string;
+    crop_type: string;
+    estimated_quantity: number;
+    // champs legacy conservés pour l'UI
+    agriculteurId: string;
+    cooperativeId?: string;
+    typeProduit: TypeProduit;
+    poidsKg: number;
+    latitude?: number;
+    longitude?: number;
+    dateRecolte: string;
+    photoPath?: string;
+    notesQualite?: string;
+    agriculteurNom: string;
+    farmId?: string;
+  }) => Promise<Lot>;
   chargerLotsProducteur: (producerId: number) => Promise<void>;
   chargerLotsCooperative: (cooperativeId: string) => Promise<void>;
   trouverParId: (lotId: string) => Lot | undefined;
@@ -26,13 +48,47 @@ interface LotsContextType {
 
 const LotsContext = createContext<LotsContextType | undefined>(undefined);
 
+/** Convertit un Batch Django en modèle Lot local */
+const batchToLot = (b: any): Lot => ({
+  id: b.id.toString(),
+  lotId: b.unique_code || `TRC-${b.id}`,
+  agriculteurId: b.farmer_id?.toString() || "",
+  cooperativeId: b.validated_by?.toString() || "",
+  typeProduit: (b.crop_type as TypeProduit) || "cacao",
+  poidsKg: b.estimated_quantity || 0,
+  latitude: 0,
+  longitude: 0,
+  dateRecolte: b.created_at || new Date().toISOString(),
+  dateEnregistrement: b.created_at || new Date().toISOString(),
+  statut: djangoStatusToLocal(b.status),
+  blockchainTxHash: b.blockchain_tx_hash || undefined,
+  syncBlockchain: !!b.blockchain_tx_hash,
+  agriculteurNom: b.farmer_name || "Producteur",
+  farmId: undefined,
+  notesQualite: undefined,
+  photoPath: undefined,
+});
+
+const djangoStatusToLocal = (status: string): Lot["statut"] => {
+  const map: Record<string, Lot["statut"]> = {
+    draft: "en_attente_magasinier",
+    pending: "en_attente_magasinier",
+    approved: "transfere",
+    rejected: "rejete",
+    in_transit: "en_transit",
+    delivered: "transfere",
+    exported: "exporte",
+    locked: "exporte",
+  };
+  return map[status] || "en_attente_magasinier";
+};
+
 export const LotsProvider = ({ children }: { children: ReactNode }) => {
   const { agriculteur } = useAgriculteur();
   const [lots, setLots] = useState<Lot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Charger automatiquement les lots de l'utilisateur connecté depuis Django
   useEffect(() => {
     if (agriculteur && agriculteur.djangoId) {
       if (agriculteur.secteur === "Coopérative") {
@@ -45,71 +101,23 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [agriculteur]);
 
-  // Ne plus utiliser localStorage de manière globale pour éviter les mélanges entre utilisateurs.
-
-  const genererLotId = () => {
-    const annee = new Date().getFullYear();
-    const numero = (lots.length + 1).toString().padStart(4, '0');
-    return `LOT-${annee}-${numero}`;
-  };
-
-  const ajouterLot = async (params: Omit<Lot, 'id' | 'lotId' | 'dateEnregistrement' | 'statut' | 'syncBlockchain'> & { agriculteurNom: string }): Promise<Lot> => {
+  /** Crée un nouveau lot via l'API Django /stock/batches */
+  const ajouterLot = async (params: Parameters<LotsContextType["ajouterLot"]>[0]): Promise<Lot> => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const { DJANGO_API_BASE } = await import("../lib/djangoApi");
-      const token = localStorage.getItem("tracao_token");
+      if (!agriculteur?.djangoId) throw new Error("Utilisateur non connecté");
 
-      // Préparation du payload pour Django
-      const stockProducerPayload = {
-        producer: agriculteur?.djangoId,
-        cooperative: params.cooperativeId ? parseInt(params.cooperativeId) : null,
-        weight: params.poidsKg,
-        date: new Date(params.dateRecolte).toISOString().split('T')[0],
-        product_type: params.typeProduit,
-        origin: "Django Mobile",
-        surface_size: 0,
-        production_size: params.poidsKg,
-        farm_id: params.farmId
-      };
-
-      const res = await fetch(`${DJANGO_API_BASE}/stock/stock_producer`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify(stockProducerPayload)
+      const djangoBatch = await createBatch({
+        farmer_id: agriculteur.djangoId,
+        parcel_id: params.parcel_id,
+        season: params.season || `${new Date().getFullYear()}`,
+        crop_type: params.crop_type || params.typeProduit,
+        estimated_quantity: params.estimated_quantity || params.poidsKg,
       });
 
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText);
-      }
-
-      const djangoLotData = await res.json();
-
-      // Mappage de la réponse Django vers notre modèle local
-      const lot: Lot = {
-        id: djangoLotData.id.toString(),
-        lotId: `LOT-DJ-${djangoLotData.id}`,
-        agriculteurId: params.agriculteurId,
-        cooperativeId: params.cooperativeId,
-        typeProduit: params.typeProduit,
-        poidsKg: params.poidsKg,
-        latitude: params.latitude,
-        longitude: params.longitude,
-        dateRecolte: params.dateRecolte,
-        dateEnregistrement: djangoLotData.date || new Date().toISOString(),
-        statut: 'en_attente_magasinier',
-        photoPath: params.photoPath,
-        notesQualite: params.notesQualite,
-        agriculteurNom: params.agriculteurNom,
-        syncBlockchain: false,
-        farmId: params.farmId,
-      };
-      
+      const lot = batchToLot(djangoBatch);
       setLots(prev => [lot, ...prev]);
       return lot;
     } catch (e: any) {
@@ -123,25 +131,8 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
   const chargerLotsProducteur = async (producerId: number) => {
     setIsLoading(true);
     try {
-      const data = await getLotsForProducer(producerId);
-      const mappedLots: Lot[] = data.map((sp: any) => ({
-        id: sp.id.toString(),
-        lotId: `LOT-DJ-${sp.id}`,
-        agriculteurId: sp.producer.toString(),
-        cooperativeId: sp.cooperative.toString(),
-        typeProduit: sp.product_type as TypeProduit,
-        poidsKg: sp.weight,
-        latitude: 0, // Django doesn't store this in StockProducer yet
-        longitude: 0,
-        dateRecolte: sp.date,
-        dateEnregistrement: sp.date,
-        statut: sp.batch_number ? 'transfere' : 'en_attente_magasinier',
-        blockchainTxHash: sp.batch_number,
-        syncBlockchain: !!sp.batch_number,
-        agriculteurNom: "Producteur",
-        farmId: sp.farm
-      }));
-      setLots(mappedLots);
+      const data = await fetchFarmerBatches(producerId);
+      setLots(data.map(batchToLot));
     } catch (e) {
       console.error("Erreur lots Django:", e);
     } finally {
@@ -152,25 +143,8 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
   const chargerLotsCooperative = async (cooperativeId: string) => {
     setIsLoading(true);
     try {
-      const data = await getLotsForCooperative(parseInt(cooperativeId));
-      const mappedLots: Lot[] = data.map((so: any) => ({
-        id: so.producer_stock.id.toString(),
-        lotId: `LOT-DJ-${so.producer_stock.id}`,
-        agriculteurId: so.producer_stock.producer.toString(),
-        cooperativeId: so.cooperative.toString(),
-        typeProduit: so.producer_stock.product_type as TypeProduit,
-        poidsKg: so.producer_stock.weight,
-        latitude: 0,
-        longitude: 0,
-        dateRecolte: so.producer_stock.date,
-        dateEnregistrement: so.producer_stock.date,
-        statut: so.is_confirmed ? 'transfere' : 'en_attente_magasinier',
-        blockchainTxHash: so.producer_stock.batch_number,
-        syncBlockchain: !!so.producer_stock.batch_number,
-        agriculteurNom: "Producteur",
-        farmId: so.producer_stock.farm
-      }));
-      setLots(mappedLots);
+      const data = await fetchCooperativeBatches(parseInt(cooperativeId));
+      setLots(data.map(batchToLot));
     } catch (e) {
       console.error("Erreur lots Coop Django:", e);
     } finally {
@@ -178,94 +152,71 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const trouverParId = (lotId: string) => {
-    return lots.find(l => l.lotId === lotId);
-  };
+  const trouverParId = (lotId: string) => lots.find(l => l.lotId === lotId);
 
-  const accepterLot = async (lotId: string, magasinierDjangoId: number, producerDjangoId: number, producerEmail: string, raison?: string) => {
+  /** Valide un lot — met son statut à 'approved' sur Django */
+  const accepterLot = async (
+    lotId: string,
+    magasinierDjangoId: number,
+    producerDjangoId: number,
+    producerEmail: string,
+    raison?: string
+  ) => {
     try {
       const lot = lots.find(l => l.lotId === lotId);
       if (!lot) return;
 
-      // Extract numeric ID from lotId (assuming format LOT-DJ-XX)
-      const stockProducerId = parseInt(lot.id);
+      await updateBatchStatus(lot.id, "approved");
 
-      const { DJANGO_API_BASE } = await import("../lib/djangoApi");
-      const token = localStorage.getItem("tracao_token");
-
-      const res = await fetch(`${DJANGO_API_BASE}/stock/stock_origin`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          cooperative: magasinierDjangoId,
-          producer_stock: stockProducerId,
-          is_confirmed: true
-        })
-      });
-
-      if (!res.ok) throw new Error("Erreur lors de la validation sur le backend");
-
-      // Mettre à jour l'état local
-      setLots(prev => prev.map(l => 
-        l.lotId === lotId ? { ...l, statut: 'transfere' as const, syncBlockchain: true, notesQualite: raison || l.notesQualite } : l
-      ));
-
-      // Notifications
-      await NotificationService.sendLocalNotification(
-        "Lot Approuvé",
-        `Le lot ${lotId} a été approuvé avec succès.`
+      setLots(prev =>
+        prev.map(l =>
+          l.lotId === lotId
+            ? { ...l, statut: "transfere" as const, syncBlockchain: true, notesQualite: raison || l.notesQualite }
+            : l
+        )
       );
+
+      await NotificationService.sendLocalNotification("Lot Approuvé", `Le lot ${lotId} a été approuvé.`);
 
       if (producerEmail) {
         await NotificationService.sendEmail(
           producerEmail,
           "Votre lot a été approuvé",
-          `Bonjour, le lot ${lotId} a été approuvé par le magasin. Commentaire: ${raison || "Aucun commentaire"}`
+          `Bonjour, le lot ${lotId} a été approuvé par le magasin. Commentaire : ${raison || "Aucun"}`
         );
       }
-
-    } catch (error) {
-      console.error("Erreur accepterLot:", error);
-      throw error;
+    } catch (err) {
+      console.error("Erreur accepterLot:", err);
+      throw err;
     }
   };
 
   const refuserLot = async (lotId: string, motifRejet: string) => {
-    setLots(prev => prev.map(l => l.lotId === lotId ? { ...l, statut: 'rejete', notesQualite: motifRejet } : l));
-    
-    await NotificationService.sendLocalNotification(
-      "Lot Rejeté",
-      `Le lot ${lotId} a été rejeté.`
+    const lot = lots.find(l => l.lotId === lotId);
+    if (lot) await updateBatchStatus(lot.id, "rejected").catch(console.error);
+
+    setLots(prev =>
+      prev.map(l => l.lotId === lotId ? { ...l, statut: "rejete", notesQualite: motifRejet } : l)
     );
+
+    await NotificationService.sendLocalNotification("Lot Rejeté", `Le lot ${lotId} a été rejeté.`);
   };
 
   const totalLots = lots.length;
   const totalPoidsKg = lots.reduce((sum, l) => sum + l.poidsKg, 0);
-  const lotsExportes = lots.filter(l => l.statut === 'exporte' || l.statut === 'eudrConforme').length;
-  const lotsEnAttente = lots.filter(l => l.statut === 'en_attente_magasinier').length;
+  const lotsExportes = lots.filter(l => l.statut === "exporte" || l.statut === "eudrConforme").length;
+  const lotsEnAttente = lots.filter(l => l.statut === "en_attente_magasinier").length;
   const lotsSyncronises = lots.filter(l => l.syncBlockchain && l.blockchainTxHash).length;
-  const lotsRecents = [...lots].sort((a, b) => new Date(b.dateEnregistrement).getTime() - new Date(a.dateEnregistrement).getTime()).slice(0, 5);
+  const lotsRecents = [...lots]
+    .sort((a, b) => new Date(b.dateEnregistrement).getTime() - new Date(a.dateEnregistrement).getTime())
+    .slice(0, 5);
 
   return (
     <LotsContext.Provider value={{
-      lots,
-      isLoading,
-      error,
-      totalLots,
-      totalPoidsKg,
-      lotsExportes,
-      lotsEnAttente,
-      lotsSyncronises,
-      lotsRecents,
-      ajouterLot,
-      chargerLotsProducteur,
-      chargerLotsCooperative,
-      trouverParId,
-      accepterLot,
-      refuserLot
+      lots, isLoading, error,
+      totalLots, totalPoidsKg, lotsExportes, lotsEnAttente, lotsSyncronises, lotsRecents,
+      ajouterLot, chargerLotsProducteur, chargerLotsCooperative,
+      trouverParId, accepterLot, refuserLot,
     }}>
       {children}
     </LotsContext.Provider>
@@ -274,8 +225,6 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
 
 export const useLots = () => {
   const context = useContext(LotsContext);
-  if (context === undefined) {
-    throw new Error('useLots must be used within a LotsProvider');
-  }
+  if (context === undefined) throw new Error('useLots must be used within a LotsProvider');
   return context;
 };
