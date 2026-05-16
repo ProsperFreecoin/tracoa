@@ -72,7 +72,11 @@ class StockController:
             count = Batch.objects.count() + 1
             data.unique_code = f"TRC-{year}-{count:04d}"
             
-        batch = Batch.objects.create(**data.dict())
+        batch_data = data.dict(exclude_none=True)
+        # Remove parcel_id if empty string
+        if not batch_data.get('parcel_id'):
+            batch_data.pop('parcel_id', None)
+        batch = Batch.objects.create(**batch_data)
         return batch
 
     @route.get('/batches/farmer/{farmer_id}', response=List[BatchResponseSchema], auth=None)

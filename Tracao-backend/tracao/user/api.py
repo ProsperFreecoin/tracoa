@@ -52,48 +52,57 @@ class UserController:
         google_data = google_resp.json()
 
         # Sécurité : vérifier que le token est bien destiné à notre app
-        # (client_id configuré dans les variables d'environnement)
         import os
         expected_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
         if expected_client_id and google_data.get("aud") != expected_client_id:
             raise HttpError(401, "Token Google non autorisé pour cette application.")
 
-        email = google_data.get("email")
+        email = google_data.get('email')
         if not email or not google_data.get("email_verified"):
             raise HttpError(400, "Email Google non vérifié.")
 
-        first_name = google_data.get("given_name", "")
-        last_name = google_data.get("family_name", "")
+        first_name = google_data.get('given_name', '')
+        last_name = google_data.get('family_name', '')
 
-        # Création ou récupération du compte Django
+        # Récupération ou création de l'utilisateur
         user, created = User.objects.get_or_create(
             email=email,
             defaults={
-                "first_name": first_name,
-                "last_name": last_name,
-                "is_verified": True,  # Google a déjà vérifié l'email
+                'first_name': first_name,
+                'last_name': last_name,
+                'is_farmer': True,
+                'is_verified': True,
+                'situation_geo': "Lome"
             }
         )
-        if created:
-            user.set_unusable_password()
-            user.save()
 
-        # Génération de la paire JWT
         refresh = RefreshToken.for_user(user)
         return {
-            "access": str(refresh.access_token),
             "refresh": str(refresh),
+            "access": str(refresh.access_token),
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name,
                 "is_farmer": user.is_farmer,
-                "is_store": user.is_store,
-                "is_verified": user.is_verified,
-            },
-            "created": created,
+                "is_store": user.is_store
+            }
         }
+
+    @route.post("/notifications", auth=JWTAuth())
+    def create_notification(self, request, payload: dict):
+        """Permet d'envoyer une notification à un autre utilisateur."""
+        receiver_id = payload.get("receiver_id")
+        message = payload.get("message")
+        notif_type = payload.get("type", "INFO")
+        
+        receiver = get_object_or_404(User, id=receiver_id)
+        notif = Notification.objects.create(
+            user=receiver,
+            message=message,
+            type=notif_type,
+            metadata=payload.get("metadata", {})
+        )
+        return {"success": True, "id": notif.id}
 
 
     @route.get("/notifications", auth=JWTAuth(), response=list[NotificationSchema])

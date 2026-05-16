@@ -1,49 +1,49 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useAgriculteur } from "../context/AgriculteurContext";
 import { useLots } from "../context/LotsContext";
 import { TypeProduit } from "../types";
-import { Button } from "./ui/Button";
-import { ArrowLeftIcon, MapPinIcon, CameraIcon, XIcon, UploadCloudIcon, ImageIcon } from "lucide-react";
+import { MapPinIcon, CameraIcon, XIcon, UploadCloudIcon, ImageIcon, SearchIcon } from "lucide-react";
 import { uploadToCloudinary } from "../lib/cloudinary";
 import { NotificationService } from "../lib/notifications";
 
 export function CreateLotModal({ onClose }: { onClose: () => void }) {
-  const router = useRouter();
   const { agriculteur } = useAgriculteur();
   const { ajouterLot } = useLots();
 
-  const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedMagasinId, setSelectedMagasinId] = useState<string | null>(null);
-  const [availableMagasins, setAvailableMagasins] = useState<any[]>([]);
-  const [isLoadingMagasins, setIsLoadingMagasins] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Form state
+  // Form state — matches the screenshot fields
+  const [label, setLabel] = useState("");
   const [typeProduit, setTypeProduit] = useState<TypeProduit | null>(null);
+  const [saisonDebut, setSaisonDebut] = useState(new Date().getFullYear().toString());
+  const [saisonFin, setSaisonFin] = useState((new Date().getFullYear() + 1).toString());
   const [poidsKg, setPoidsKg] = useState("");
-  const [dateRecolte, setDateRecolte] = useState(new Date().toISOString().split('T')[0]);
+
+  // GPS state
   const [gpsCoords, setGpsCoords] = useState<{lat: number, lng: number} | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [notes, setNotes] = useState("");
   const [localityName, setLocalityName] = useState<string | null>(null);
 
   // Photo state
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropZoneRef = useRef<HTMLDivElement>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
-  // Farms state
-  const [farms, setFarms] = useState<any[]>([]);
-  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
-  const [isLoadingFarms, setIsLoadingFarms] = useState(false);
+  // Store search state
+  const [storeSearch, setStoreSearch] = useState("");
+  const [selectedMagasinId, setSelectedMagasinId] = useState<string | null>(null);
+  const [availableMagasins, setAvailableMagasins] = useState<any[]>([]);
+  const [isLoadingMagasins, setIsLoadingMagasins] = useState(false);
+  const [showStoreDropdown, setShowStoreDropdown] = useState(false);
 
-  // --- Shared image processor (file input + drag-drop + paste) ---
+  // Auto-generated unique code
+  const generatedCode = `TRC-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`;
+
+  // --- Process image file ---
   const processImageFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
     if (file.size > 8 * 1024 * 1024) {
@@ -54,116 +54,44 @@ export function CreateLotModal({ onClose }: { onClose: () => void }) {
     setPhotoPreview(URL.createObjectURL(file));
   }, []);
 
-  // --- Fetch Cooperatives and Farms when component mounts ---
+  // --- Fetch stores on mount ---
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchStores = async () => {
       setIsLoadingMagasins(true);
-      setIsLoadingFarms(true);
       try {
-        const { getFarms } = await import("../lib/djangoApi");
-        const backendFarms = await getFarms();
-        setFarms(backendFarms);
-
         const DJANGO_API_BASE = "https://tracoa.onrender.com/api";
         const res = await fetch(`${DJANGO_API_BASE}/users/all_stores`);
         const stores = res.ok ? await res.json() : [];
-
-        if (stores.length === 0) {
-          stores.push({
-            id: "default-store",
-            nom: "Magasin Central Lomé",
-            region: "Maritime",
-          });
-        }
         setAvailableMagasins(stores);
       } catch (error) {
-        console.error("Erreur lors de la récupération des données", error);
-        setAvailableMagasins([{
-          id: "default-store",
-          nom: "Magasin Central Lomé",
-          region: "Maritime",
-        }]);
+        console.error("Erreur lors de la récupération des magasins", error);
       } finally {
         setIsLoadingMagasins(false);
-        setIsLoadingFarms(false);
       }
     };
-    fetchData();
+    fetchStores();
   }, []);
-
-  // --- Paste anywhere on the page (Ctrl+V / Cmd+V) ---
-  useEffect(() => {
-    const handleGlobalPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) processImageFile(file);
-          break;
-        }
-      }
-    };
-    window.addEventListener("paste", handleGlobalPaste);
-    return () => window.removeEventListener("paste", handleGlobalPaste);
-  }, [processImageFile]);
-
-  // --- Drag & Drop ---
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) processImageFile(file);
-  };
 
   if (!agriculteur) return null;
 
-  const handleNext = () => {
-    if (step < 5) setStep(step + 1);
-  };
-
-  const handleBack = () => {
-    if (step > 1) setStep(step - 1);
-    else onClose();
-  };
-
+  // --- GPS ---
   const getLocation = () => {
     setIsLocating(true);
     setLocalityName(null);
 
     const onSuccess = async (lat: number, lng: number) => {
       setGpsCoords({ lat, lng });
-      // --- Reverse geocoding via BigDataCloud (free, no key, fr language) ---
       try {
         const res = await fetch(
           `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=fr`
         );
         if (res.ok) {
           const data = await res.json();
-          // Priority: locality > city > principalSubdivision (region)
-          const place =
-            data.locality ||
-            data.city ||
-            data.principalSubdivision ||
-            data.countryName ||
-            null;
+          const place = data.locality || data.city || data.principalSubdivision || data.countryName || null;
           setLocalityName(place);
         }
       } catch {
-        // Reverse geocoding is optional — don't block the flow
+        // Reverse geocoding is optional
       } finally {
         setIsLocating(false);
       }
@@ -171,14 +99,8 @@ export function CreateLotModal({ onClose }: { onClose: () => void }) {
 
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          onSuccess(position.coords.latitude, position.coords.longitude);
-        },
-        (error) => {
-          console.warn("Geolocation denied:", error);
-          // Demo fallback — Lomé, Togo
-          onSuccess(6.1296, 1.2254);
-        },
+        (position) => onSuccess(position.coords.latitude, position.coords.longitude),
+        () => onSuccess(6.1296, 1.2254),
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
@@ -186,25 +108,36 @@ export function CreateLotModal({ onClose }: { onClose: () => void }) {
     }
   };
 
+  // --- Photo ---
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) processImageFile(file);
   };
-
   const handleRemovePhoto = () => {
     setPhotoFile(null);
     setPhotoPreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // --- Store search filter ---
+  const filteredStores = availableMagasins.filter((s: any) => {
+    const name = (s.nom || s.store_name || s.first_name || "").toLowerCase();
+    return name.includes(storeSearch.toLowerCase());
+  });
+
+  const storeNotFound = storeSearch.trim() !== "" && filteredStores.length === 0 && !isLoadingMagasins;
+
+  // --- Form validation ---
+  const canSubmit = typeProduit && poidsKg && !isSubmitting;
+
+  // --- Submit ---
   const handleSubmit = async () => {
-    if (!typeProduit || !poidsKg || !gpsCoords) return;
-    
+    if (!canSubmit) return;
+    setSubmitError(null);
     setIsSubmitting(true);
+
     try {
       let photoUrl: string | undefined;
-
-      // Upload photo to Cloudinary if one was selected
       if (photoFile) {
         setIsUploadingPhoto(true);
         const result = await uploadToCloudinary(photoFile);
@@ -216,400 +149,341 @@ export function CreateLotModal({ onClose }: { onClose: () => void }) {
         agriculteurId: agriculteur.id,
         agriculteurNom: `${agriculteur.prenom} ${agriculteur.nom}`,
         cooperativeId: selectedMagasinId || undefined,
-        typeProduit: typeProduit,
+        typeProduit: typeProduit!,
         poidsKg: parseFloat(poidsKg),
-        latitude: gpsCoords.lat,
-        longitude: gpsCoords.lng,
-        dateRecolte: new Date(dateRecolte),
-        notesQualite: notes,
+        latitude: gpsCoords?.lat,
+        longitude: gpsCoords?.lng,
+        dateRecolte: new Date().toISOString(),
+        notesQualite: "",
         photoPath: photoUrl,
-        farmId: selectedFarmId ? parseInt(selectedFarmId) : undefined,
+        label: label || undefined,
+        season: `${saisonDebut}-${saisonFin}`,
       });
 
-      // Send local/push notification
+      // Notification locale
       await NotificationService.sendLocalNotification(
         "Lot Enregistré",
-        `Le lot ${newLot.lotId} a été créé et scellé avec succès.`
+        `Le lot ${newLot.lotId} a été créé avec succès.`
       );
 
-      // Simulate email notification if farmer has email
+      // Notification au magasin si sélectionné
+      if (selectedMagasinId) {
+        try {
+          const { sendNotification } = await import('../lib/djangoApi');
+          await sendNotification({
+            receiver_id: parseInt(selectedMagasinId),
+            message: `Nouveau lot à valider : ${newLot.lotId} (${typeProduit}, ${poidsKg}kg)`,
+            type: "BATCH_PENDING",
+            metadata: { batch_id: newLot.id, lot_id: newLot.lotId }
+          });
+        } catch (err) {
+          console.error("Erreur notification magasin:", err);
+        }
+      }
+
       if (agriculteur.email) {
         await NotificationService.sendEmail(
           agriculteur.email,
           "Confirmation d'enregistrement - Tracao",
-          `Bonjour ${agriculteur.prenom}, votre lot <strong>${newLot.lotId}</strong> a été enregistré sur la blockchain.`
+          `Bonjour ${agriculteur.prenom}, votre lot <strong>${newLot.lotId}</strong> a été enregistré.`
         );
       }
 
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      setSubmitError(e.message || "Erreur lors de l'enregistrement.");
       setIsSubmitting(false);
       setIsUploadingPhoto(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-hidden p-4">
-      <div className="bg-tracao-cream w-full max-w-2xl h-[90vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden relative">
-        <div className="bg-tracao-cacao p-4 text-white flex items-center shadow-sm relative z-10">
-        <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-white/10 active:scale-95 transition-all">
-          <ArrowLeftIcon size={24} />
-        </button>
-        <h1 className="text-lg font-bold ml-2">Nouveau Lot</h1>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden relative"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+          <h2 className="text-lg font-bold text-tracao-choco">Création d&apos;un nouveau lot</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <XIcon size={18} />
+          </button>
+        </div>
 
-      {/* Progress bar */}
-      <div className="flex h-1.5 bg-tracao-cream-mid">
-        <div 
-          className="h-full bg-tracao-gold transition-all duration-300"
-          style={{ width: `${(step / 5) * 100}%` }}
-        />
-      </div>
+        {/* Form body — scrollable */}
+        <div className="px-6 py-5 space-y-5 max-h-[70vh] overflow-y-auto">
 
-      <div className="flex-1 p-6 overflow-y-auto pb-24">
-        {step === 1 && (
-          <div className="animate-in slide-in-from-right">
-            <h2 className="text-xl font-bold text-tracao-choco mb-2">Quel produit enregistrez-vous ?</h2>
-            <p className="text-sm text-tracao-choco-light mb-6">Étape 1 sur 4</p>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setTypeProduit('cacao')}
-                className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${typeProduit === 'cacao' ? 'bg-white border-tracao-cacao shadow-md scale-[1.02]' : 'bg-tracao-cream-light border-transparent hover:bg-white text-tracao-choco-light'}`}
-              >
-                <span className="text-5xl">🍫</span>
-                <span className={`font-bold ${typeProduit === 'cacao' ? 'text-tracao-cacao' : ''}`}>Cacao</span>
-              </button>
-              
-              <button 
-                onClick={() => setTypeProduit('cafe')}
-                className={`p-6 rounded-2xl border-2 flex flex-col items-center justify-center gap-3 transition-all ${typeProduit === 'cafe' ? 'bg-white border-tracao-cacao shadow-md scale-[1.02]' : 'bg-tracao-cream-light border-transparent hover:bg-white text-tracao-choco-light'}`}
-              >
-                <span className="text-5xl">☕</span>
-                <span className={`font-bold ${typeProduit === 'cafe' ? 'text-tracao-cacao' : ''}`}>Café</span>
-              </button>
-            </div>
-            
-            <div className="mt-8">
-              <Button fullWidth onClick={handleNext} disabled={!typeProduit}>Continuer</Button>
-            </div>
+          {/* Code auto-généré (lecture seule) */}
+          <div>
+            <input
+              type="text"
+              value={generatedCode}
+              readOnly
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl py-3 px-4 text-sm text-gray-400 font-mono cursor-not-allowed"
+            />
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="animate-in slide-in-from-right">
-            <h2 className="text-xl font-bold text-tracao-choco mb-2">Détails de la récolte</h2>
-            <p className="text-sm text-tracao-choco-light mb-6">Étape 2 sur 4</p>
-            
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-tracao-choco-light mb-1.5 uppercase tracking-wide">Champ / Ferme d'origine</label>
-                <select 
-                  value={selectedFarmId || ""} 
-                  onChange={e => setSelectedFarmId(e.target.value)}
-                  className="w-full border border-tracao-border rounded-xl p-4 bg-white text-lg focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao"
-                >
-                  <option value="">Sélectionnez une ferme (Optionnel)</option>
-                  {farms.map(farm => (
-                    <option key={farm.id} value={farm.id}>{farm.name} ({farm.area_hectares} ha)</option>
-                  ))}
-                </select>
-                {farms.length === 0 && !isLoadingFarms && (
-                  <p className="text-[10px] text-tracao-choco-pale mt-1">Aucune ferme enregistrée sur votre compte Django.</p>
-                )}
-              </div>
+          {/* Libellé du lot */}
+          <div>
+            <input
+              type="text"
+              placeholder="Entrer le libellé du lot"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm text-tracao-choco placeholder:text-gray-400 focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao transition-colors"
+            />
+          </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-tracao-choco-light mb-1.5 uppercase tracking-wide">Poids du lot (en kg)</label>
-                <div className="relative">
-                  <input 
-                    type="number" 
-                    value={poidsKg} 
-                    onChange={e => setPoidsKg(e.target.value)}
-                    className="w-full border border-tracao-border rounded-xl p-4 pr-12 bg-white text-lg font-bold focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao"
-                    placeholder="Ex: 150"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-tracao-choco-pale">kg</span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-xs font-semibold text-tracao-choco-light mb-1.5 uppercase tracking-wide">Date de récolte</label>
-                <input 
-                  type="date" 
-                  value={dateRecolte} 
-                  onChange={e => setDateRecolte(e.target.value)}
-                  className="w-full border border-tracao-border rounded-xl p-4 bg-white text-lg focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao"
+          {/* Choix de culture */}
+          <div>
+            <label className="block text-sm font-semibold text-tracao-choco mb-3">Choix de culture</label>
+            <div className="flex gap-4">
+              <label
+                className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full border cursor-pointer transition-all text-sm font-medium ${
+                  typeProduit === "cacao"
+                    ? "border-tracao-cacao bg-tracao-cacao/5 text-tracao-cacao"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="culture"
+                  value="cacao"
+                  checked={typeProduit === "cacao"}
+                  onChange={() => setTypeProduit("cacao")}
+                  className="accent-tracao-cacao w-4 h-4"
                 />
-              </div>
-            </div>
-            
-            <div className="mt-8">
-              <Button fullWidth onClick={handleNext} disabled={!poidsKg}>Continuer</Button>
-            </div>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="animate-in slide-in-from-right">
-            <h2 className="text-xl font-bold text-tracao-choco mb-2">Localisation du lot (EUDR)</h2>
-            <p className="text-sm text-tracao-choco-light mb-6">Étape 3 sur 4</p>
-            
-            <div className="bg-tracao-cream-light p-5 rounded-2xl border border-tracao-border-light text-center">
-              <div className="w-16 h-16 bg-tracao-cream-mid rounded-full flex items-center justify-center mx-auto mb-4">
-                <MapPinIcon size={32} className="text-tracao-cacao" />
-              </div>
-              <h3 className="font-bold text-tracao-choco mb-2">Coordonnées GPS requises</h3>
-              <p className="text-xs text-tracao-choco-light mb-6">
-                Pour respecter les normes européennes anti-déforestation, nous devons lier ce lot au lieu exact de la récolte.
-              </p>
-              
-              {!gpsCoords ? (
-                <Button fullWidth onClick={getLocation} disabled={isLocating}>
-                  {isLocating ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                      </svg>
-                      Acquisition GPS...
-                    </span>
-                  ) : "Capturer la position actuelle"}
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  {/* Locality name badge */}
-                  {localityName && (
-                    <div className="flex items-center justify-center gap-2 bg-tracao-cacao/10 border border-tracao-cacao/20 rounded-xl py-2.5 px-4">
-                      <MapPinIcon size={16} className="text-tracao-cacao shrink-0" />
-                      <span className="font-bold text-tracao-cacao text-sm">{localityName}</span>
-                    </div>
-                  )}
-                  {/* Success card */}
-                  <div className="bg-tracao-forest-light border border-[#B8D8A0] p-4 rounded-xl text-tracao-forest">
-                    <p className="font-bold text-sm mb-1">Position enregistrée ✓</p>
-                    <p className="text-xs font-mono opacity-70">
-                      {gpsCoords.lat.toFixed(6)}° N, {gpsCoords.lng.toFixed(6)}° E
-                    </p>
-                  </div>
-                  {/* Re-capture link */}
-                  <button
-                    type="button"
-                    onClick={getLocation}
-                    className="text-xs text-tracao-choco-pale underline underline-offset-2 hover:text-tracao-cacao transition-colors w-full text-center"
-                  >
-                    Recapturer la position
-                  </button>
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-8">
-              <Button fullWidth onClick={handleNext} disabled={!gpsCoords}>Continuer</Button>
+                Cacao
+              </label>
+              <label
+                className={`flex items-center gap-2.5 px-5 py-2.5 rounded-full border cursor-pointer transition-all text-sm font-medium ${
+                  typeProduit === "cafe"
+                    ? "border-tracao-cacao bg-tracao-cacao/5 text-tracao-cacao"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="culture"
+                  value="cafe"
+                  checked={typeProduit === "cafe"}
+                  onChange={() => setTypeProduit("cafe")}
+                  className="accent-tracao-cacao w-4 h-4"
+                />
+                Café
+              </label>
             </div>
           </div>
-        )}
 
-        {step === 4 && (
-          <div className="animate-in slide-in-from-right">
-            <h2 className="text-xl font-bold text-tracao-choco mb-2">Informations finales</h2>
-            <p className="text-sm text-tracao-choco-light mb-6">Étape 4 sur 4</p>
-            
-            <div className="space-y-5">
-              {/* Hidden native file input */}
+          {/* Magasin (recherche) */}
+          <div className="relative">
+            <label className="block text-sm font-semibold text-tracao-choco mb-2">Magasin destinataire</label>
+            <div className="relative">
               <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handlePhotoSelect}
-              />
-
-              {/* Photo Upload Zone */}
-              {!photoPreview ? (
-                <div
-                  ref={dropZoneRef}
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={`w-full border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer select-none transition-all ${
-                    isDragging
-                      ? "border-tracao-cacao bg-tracao-cacao/5 scale-[1.01]"
-                      : "border-tracao-border bg-tracao-cream-light hover:bg-white hover:border-tracao-cacao hover:text-tracao-cacao text-tracao-choco-pale"
-                  } group`}
-                >
-                  <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
-                    isDragging ? "bg-tracao-cacao text-white scale-110" : "bg-tracao-cream-mid group-hover:scale-105"
-                  }`}>
-                    <UploadCloudIcon size={28} />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-bold">
-                      {isDragging ? "Relâchez pour importer" : "Importer une photo du lot"}
-                    </p>
-                    <p className="text-xs mt-0.5 opacity-70">
-                      {isDragging ? "" : "Glisser-déposer · Coller (Ctrl+V) · Cliquer"}
-                    </p>
-                  </div>
-                  {!isDragging && (
-                    <div className="flex items-center gap-2 flex-wrap justify-center">
-                      <span className="text-[10px] bg-tracao-cream-mid px-2.5 py-1 rounded-full font-semibold">JPG</span>
-                      <span className="text-[10px] bg-tracao-cream-mid px-2.5 py-1 rounded-full font-semibold">PNG</span>
-                      <span className="text-[10px] bg-tracao-cream-mid px-2.5 py-1 rounded-full font-semibold">WEBP</span>
-                      <span className="text-[10px] bg-tracao-cream-mid px-2.5 py-1 rounded-full font-semibold opacity-60">max 8 Mo</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // Photo preview with overlay actions
-                <div className="relative rounded-2xl overflow-hidden border border-tracao-border shadow-sm">
-                  <img
-                    src={photoPreview}
-                    alt="Aperçu du lot"
-                    className="w-full h-40 object-cover"
-                  />
-                  {/* Overlay gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                  {/* Bottom info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-white">
-                      <ImageIcon size={16} />
-                      <span className="text-xs font-semibold truncate max-w-[180px]">
-                        {photoFile?.name}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-white/70">
-                      {photoFile ? (photoFile.size / 1024 / 1024).toFixed(1) + " Mo" : ""}
-                    </span>
-                  </div>
-                  {/* Remove & change buttons */}
-                  <div className="absolute top-2 right-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="bg-black/50 backdrop-blur-sm text-white p-2 rounded-full hover:bg-black/70 transition-colors"
-                      title="Changer"
-                    >
-                      <CameraIcon size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRemovePhoto}
-                      className="bg-black/50 backdrop-blur-sm text-white p-2 rounded-full hover:bg-red-500/80 transition-colors"
-                      title="Supprimer"
-                    >
-                      <XIcon size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-tracao-choco-light mb-1.5 uppercase tracking-wide">Notes sur la qualité (Optionnel)</label>
-                <textarea 
-                  value={notes} 
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full border border-tracao-border rounded-xl p-4 bg-white focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao min-h-[100px]"
-                  placeholder="Particularités de la récolte, humidité..."
-                />
-              </div>
-            </div>
-            
-            <div className="mt-8 bg-tracao-cream-mid p-4 rounded-xl border border-tracao-border">
-              <p className="text-[10px] text-tracao-choco-mid leading-snug">
-                <strong>Attention :</strong> L'enregistrement du lot sur la blockchain est irréversible. Vérifiez que toutes les informations sont correctes.
-              </p>
-            </div>
-            
-            <div className="mt-8">
-              <Button fullWidth onClick={handleNext}>Continuer</Button>
-            </div>
-          </div>
-        )}
-
-        {step === 5 && (
-          <div className="animate-in slide-in-from-right pb-10">
-            <h2 className="text-xl font-bold text-tracao-choco mb-2">Choisir un magasin</h2>
-            <p className="text-sm text-tracao-choco-light mb-4">Étape 5 sur 5</p>
-            
-            <div className="bg-tracao-cream-mid p-4 rounded-xl border border-tracao-border mb-6">
-              <p className="text-[11px] text-tracao-choco leading-relaxed">
-                Sélectionnez le magasin qui vérifiera votre lot. Nous proposons les magasins disponibles dans votre région (**{agriculteur.region || "Togo"}**).
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {isLoadingMagasins ? (
-                <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-tracao-border text-tracao-choco-pale">
-                  <p className="text-sm font-bold">Recherche des magasins...</p>
-                </div>
-              ) : (
-                (() => {
-                  const filtered = availableMagasins.filter((c: any) => 
-                    !agriculteur.region || !c.region || c.region === agriculteur.region || c.id === 'default-store'
+                type="text"
+                placeholder="Rechercher un magasin..."
+                value={storeSearch}
+                onChange={(e) => {
+                  setStoreSearch(e.target.value);
+                  setShowStoreDropdown(true);
+                  // Auto-match exact
+                  const match = availableMagasins.find((m: any) =>
+                    (m.nom || m.store_name || "").toLowerCase() === e.target.value.toLowerCase()
                   );
-                  
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="p-8 text-center bg-white rounded-2xl border border-dashed border-tracao-border text-tracao-choco-pale">
-                        <p className="text-sm font-bold">Aucun magasin trouvé dans votre zone.</p>
-                        <p className="text-xs mt-1">Vous pouvez enregistrer le lot sans magasin pour le moment.</p>
-                      </div>
-                    );
-                  }
+                  if (match) setSelectedMagasinId(match.id);
+                  else setSelectedMagasinId(null);
+                }}
+                onFocus={() => setShowStoreDropdown(true)}
+                className="w-full border border-gray-200 rounded-xl py-3 px-4 pr-10 text-sm text-tracao-choco placeholder:text-gray-400 focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao transition-colors"
+              />
+              <SearchIcon size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            </div>
 
-                  return filtered.map((store: any) => (
+            {/* Dropdown results */}
+            {showStoreDropdown && storeSearch.trim() !== "" && (
+              <div className="absolute top-full left-0 right-0 z-20 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                {isLoadingMagasins ? (
+                  <p className="p-3 text-xs text-gray-400 text-center">Chargement...</p>
+                ) : storeNotFound ? (
+                  <div className="p-3">
+                    <p className="text-xs font-semibold text-red-500">Ce magasin n&apos;existe pas sur la plateforme.</p>
+                    <p className="text-[10px] text-red-400 mt-0.5">Impossible de choisir un magasin non répertorié.</p>
+                  </div>
+                ) : (
+                  filteredStores.map((store: any) => (
                     <button
                       key={store.id}
-                      onClick={() => setSelectedMagasinId(store.id)}
-                      className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
-                        selectedMagasinId === store.id 
-                        ? 'bg-white border-tracao-cacao shadow-md' 
-                        : 'bg-tracao-cream-light border-transparent hover:bg-white'
+                      onClick={() => {
+                        setSelectedMagasinId(store.id);
+                        setStoreSearch(store.nom || store.store_name || store.first_name || "");
+                        setShowStoreDropdown(false);
+                      }}
+                      className={`w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 flex items-center justify-between transition-colors ${
+                        selectedMagasinId === store.id ? "bg-tracao-cacao/5 text-tracao-cacao font-semibold" : "text-tracao-choco"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-tracao-cream-mid flex items-center justify-center text-tracao-cacao font-black">
-                          {store.nom || store.store_name ? (store.nom || store.store_name).charAt(0) : "M"}
-                        </div>
-                        <div className="text-left">
-                          <p className={`font-bold text-sm ${selectedMagasinId === store.id ? 'text-tracao-cacao' : 'text-tracao-choco'}`}>
-                            {store.nom || store.store_name || "Magasin Sans Nom"}
-                          </p>
-                          <p className="text-[10px] text-tracao-choco-pale uppercase font-semibold">{store.region || store.address || "Togo"}</p>
-                        </div>
-                      </div>
+                      <span>{store.nom || store.store_name || store.first_name || "Magasin"}</span>
                       {selectedMagasinId === store.id && (
-                        <div className="w-6 h-6 bg-tracao-cacao text-white rounded-full flex items-center justify-center">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                       )}
                     </button>
-                  ));
-                })()
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
-            <div className="mt-10 space-y-4">
-              <Button fullWidth onClick={handleSubmit} disabled={isSubmitting}>
-                {isUploadingPhoto ? "Upload de la photo..." : isSubmitting ? "Enregistrement..." : "Enregistrer et notifier le magasin"}
-              </Button>
-              <button 
-                onClick={() => {
-                  setSelectedMagasinId(null);
-                  handleSubmit();
-                }}
-                className="w-full py-3 text-xs text-tracao-choco-pale font-bold hover:text-tracao-cacao transition-colors"
-              >
-                Continuer sans magasin
-              </button>
+          {/* Définir la saison */}
+          <div>
+            <label className="block text-sm font-semibold text-tracao-choco mb-2">Définir la saison</label>
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  placeholder="Année de début"
+                  value={saisonDebut}
+                  onChange={(e) => setSaisonDebut(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm text-tracao-choco placeholder:text-gray-400 focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao"
+                />
+              </div>
+              <div className="relative flex-1">
+                <input
+                  type="number"
+                  placeholder="Année de fin"
+                  value={saisonFin}
+                  onChange={(e) => setSaisonFin(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl py-3 px-4 text-sm text-tracao-choco placeholder:text-gray-400 focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao"
+                />
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Quantité estimée */}
+          <div>
+            <div className="relative">
+              <input
+                type="number"
+                placeholder="Quantité estimée en kilogramme (kg)"
+                value={poidsKg}
+                onChange={(e) => setPoidsKg(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl py-3 px-4 pr-12 text-sm text-tracao-choco placeholder:text-gray-400 focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao"
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">kg</span>
+            </div>
+          </div>
+
+          {/* GPS Capture */}
+          <div>
+            <label className="block text-sm font-semibold text-tracao-choco mb-2">Coordonnées GPS</label>
+            {!gpsCoords ? (
+              <button
+                onClick={getLocation}
+                disabled={isLocating}
+                className="w-full border border-dashed border-gray-300 rounded-xl py-3 px-4 text-sm text-gray-500 hover:border-tracao-cacao hover:text-tracao-cacao hover:bg-tracao-cacao/5 transition-all flex items-center justify-center gap-2"
+              >
+                {isLocating ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                    </svg>
+                    Acquisition GPS...
+                  </>
+                ) : (
+                  <>
+                    <MapPinIcon size={16} />
+                    Capturer la position actuelle
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl py-2.5 px-4">
+                <MapPinIcon size={14} className="text-green-600 shrink-0" />
+                <span className="text-xs font-semibold text-green-700">
+                  {localityName ? `${localityName} — ` : ""}
+                  {gpsCoords.lat.toFixed(4)}°, {gpsCoords.lng.toFixed(4)}°
+                </span>
+                <button onClick={getLocation} className="ml-auto text-[10px] text-green-600 underline hover:text-green-800">
+                  Recapturer
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Photo Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-tracao-choco mb-2">Photo du lot (optionnel)</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handlePhotoSelect}
+            />
+            {!photoPreview ? (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border border-dashed border-gray-300 rounded-xl py-3 px-4 text-sm text-gray-500 hover:border-tracao-cacao hover:text-tracao-cacao hover:bg-tracao-cacao/5 transition-all flex items-center justify-center gap-2"
+              >
+                <UploadCloudIcon size={16} />
+                Importer une photo
+              </button>
+            ) : (
+              <div className="relative rounded-xl overflow-hidden border border-gray-200">
+                <img src={photoPreview} alt="Aperçu" className="w-full h-32 object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-2 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-white">
+                    <ImageIcon size={12} />
+                    <span className="text-[10px] font-semibold truncate max-w-[150px]">{photoFile?.name}</span>
+                  </div>
+                </div>
+                <div className="absolute top-1.5 right-1.5 flex gap-1.5">
+                  <button onClick={() => fileInputRef.current?.click()} className="bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70" title="Changer">
+                    <CameraIcon size={12} />
+                  </button>
+                  <button onClick={handleRemovePhoto} className="bg-black/50 text-white p-1.5 rounded-full hover:bg-red-500/80" title="Supprimer">
+                    <XIcon size={12} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Error message */}
+          {submitError && (
+            <div className="p-3 bg-red-50 border border-red-100 rounded-xl">
+              <p className="text-xs text-red-600 font-semibold">{submitError}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer buttons */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            Annuler
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-sm ${
+              canSubmit
+                ? "bg-tracao-choco text-white hover:bg-tracao-cacao active:scale-[0.98]"
+                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            {isUploadingPhoto ? "Upload photo..." : isSubmitting ? "Enregistrement..." : "Créer le lot"}
+          </button>
+        </div>
       </div>
     </div>
   );

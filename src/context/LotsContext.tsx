@@ -22,12 +22,8 @@ interface LotsContextType {
   lotsSyncronises: number;
   lotsRecents: Lot[];
   ajouterLot: (params: {
-    parcel_id: string;
-    season: string;
-    crop_type: string;
-    estimated_quantity: number;
-    // champs legacy conservés pour l'UI
     agriculteurId: string;
+    agriculteurNom: string;
     cooperativeId?: string;
     typeProduit: TypeProduit;
     poidsKg: number;
@@ -36,8 +32,8 @@ interface LotsContextType {
     dateRecolte: string;
     photoPath?: string;
     notesQualite?: string;
-    agriculteurNom: string;
-    farmId?: string;
+    label?: string;
+    season?: string;
   }) => Promise<Lot>;
   chargerLotsProducteur: (producerId: number) => Promise<void>;
   chargerLotsCooperative: (cooperativeId: string) => Promise<void>;
@@ -75,7 +71,7 @@ const djangoStatusToLocal = (status: string): Lot["statut"] => {
     pending: "en_attente_magasinier",
     approved: "transfere",
     rejected: "rejete",
-    in_transit: "en_transit",
+    in_transit: "transfere",
     delivered: "transfere",
     exported: "exporte",
     locked: "exporte",
@@ -111,10 +107,10 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
 
       const djangoBatch = await createBatch({
         farmer_id: agriculteur.djangoId,
-        parcel_id: params.parcel_id,
         season: params.season || `${new Date().getFullYear()}`,
-        crop_type: params.crop_type || params.typeProduit,
-        estimated_quantity: params.estimated_quantity || params.poidsKg,
+        crop_type: params.typeProduit,
+        estimated_quantity: params.poidsKg,
+        label: params.label,
       });
 
       const lot = batchToLot(djangoBatch);

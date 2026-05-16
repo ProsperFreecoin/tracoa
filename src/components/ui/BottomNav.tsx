@@ -15,7 +15,6 @@ export function BottomNav() {
   return (
     <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-tracao-cream-light border-t border-tracao-border flex justify-around items-center h-[65px] z-50 px-2 pb-safe">
       <NavItem href="/" icon={<HomeIcon size={22} />} label="Accueil" isActive={pathname === '/'} />
-      <NavItem href="/nouveau-lot" icon={<PlusCircleIcon size={22} />} label="Nouveau" isActive={pathname === '/nouveau-lot'} />
       <NavItem href="/suivi" icon={<HistoryIcon size={22} />} label="Suivi" isActive={pathname === '/suivi'} />
       <NavItem href="/mes-lots" icon={<ListIcon size={22} />} label="Mes Lots" isActive={pathname === '/mes-lots'} />
       <NavItem href="/profil" icon={<SettingsIcon size={22} />} label="Profil" isActive={pathname === '/profil'} />

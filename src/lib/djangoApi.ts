@@ -178,7 +178,7 @@ export const getCurrentUser = async (): Promise<any> => {
 // STOCK / PARCELLES / LOTS (Nouveau modèle de traçabilité)
 // =============================================================================
 
-/** Crée une parcelle agricole sur Django */
+/** Crée une parcelle agricole sur Django (EUDR) */
 export const createParcel = async (data: {
   name: string;
   farmer_id: number;
@@ -203,13 +203,31 @@ export const fetchMyParcels = async (): Promise<any[]> => {
   } catch { return []; }
 };
 
+export const getFarms = fetchMyParcels;
+
+/** Envoie une notification via le backend */
+export const sendNotification = async (data: {
+  receiver_id: number;
+  message: string;
+  type?: string;
+  metadata?: any;
+}): Promise<any> => {
+  const res = await fetchWithAuth("/users/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return res.ok ? await res.json() : null;
+};
+
 /** Crée un lot de récolte sur Django */
 export const createBatch = async (data: {
   farmer_id: number;
-  parcel_id: string;
+  parcel_id?: string;
   season: string;
   crop_type: string;
   estimated_quantity: number;
+  label?: string;
   unique_code?: string;
 }): Promise<any> => {
   const res = await fetchWithAuth("/stock/batches", {
@@ -267,4 +285,3 @@ export const updateParcelStatus = async (parcelId: string, status: string): Prom
 // Legacy helpers conservés pour compatibilité
 export const getLotsForProducer = fetchFarmerBatches;
 export const getLotsForCooperative = fetchCooperativeBatches;
-export const getFarms = async (): Promise<any[]> => [];

@@ -14,7 +14,7 @@ export default function Providers({ children }: { children: ReactNode }) {
     NotificationService.initPush().catch(console.error);
   }, []);
 
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "VOTRE_GOOGLE_CLIENT_ID_ICI";
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>

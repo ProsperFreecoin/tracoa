@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HomeIcon, ListIcon, PlusCircleIcon, SettingsIcon, LogOutIcon, HistoryIcon } from "lucide-react";
+import { HomeIcon, ListIcon, SettingsIcon, LogOutIcon, HistoryIcon } from "lucide-react";
 import { useAgriculteur } from "../../context/AgriculteurContext";
 
-import { BuildingIcon, ArrowRightLeftIcon, UsersIcon, HexagonIcon, FileTextIcon } from "lucide-react";
+import { ArrowRightLeftIcon, UsersIcon, HexagonIcon, FileTextIcon } from "lucide-react";
 
 const farmerNavItems = [
   { href: "/", icon: HomeIcon, label: "Accueil" },
-  { href: "/nouveau-lot", icon: PlusCircleIcon, label: "Nouveau Lot" },
   { href: "/suivi", icon: HistoryIcon, label: "Suivi des Lots" },
   { href: "/mes-lots", icon: ListIcon, label: "Mes Lots" },
   { href: "/transactions", icon: ArrowRightLeftIcon, label: "Transactions" },

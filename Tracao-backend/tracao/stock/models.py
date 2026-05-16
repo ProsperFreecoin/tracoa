@@ -64,7 +64,8 @@ class Batch(models.Model):
         TracaoUser, on_delete=models.CASCADE,
         related_name='batches', limit_choices_to={'is_farmer': True}
     )
-    parcel = models.ForeignKey(Parcel, on_delete=models.CASCADE, related_name='batches')
+    parcel = models.ForeignKey(Parcel, on_delete=models.CASCADE, related_name='batches', null=True, blank=True)
+    label = models.CharField(max_length=255, blank=True, null=True, help_text="Libellé du lot")
     season = models.CharField(max_length=50, help_text="Ex: 2025-2026")
     crop_type = models.CharField(max_length=20, choices=CROP_CHOICES)
     estimated_quantity = models.FloatField(help_text="Quantité estimée en kg")
@@ -84,7 +85,6 @@ class Batch(models.Model):
     )
 
     class Meta:
-        unique_together = ('parcel', 'season', 'crop_type')
         indexes = [
             models.Index(fields=['farmer'], name='idx_batches_farmer'),
             models.Index(fields=['parcel'], name='idx_batches_parcel'),

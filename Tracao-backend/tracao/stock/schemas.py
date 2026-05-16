@@ -53,10 +53,11 @@ class BatchCreateSchema(Schema):
     Le unique_code est généré automatiquement si non fourni.
     """
     farmer_id: int
-    parcel_id: str  # UUID de la parcelle
+    parcel_id: Optional[str] = None  # UUID de la parcelle (optionnel)
     season: str
     crop_type: str  # 'cacao' ou 'cafe'
     estimated_quantity: float
+    label: Optional[str] = None  # Libellé du lot
     unique_code: Optional[str] = None  # Auto-généré si absent : TRC-YYYY-XXXX
 
 class BatchUpdateSchema(Schema):
