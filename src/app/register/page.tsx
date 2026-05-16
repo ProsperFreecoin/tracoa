@@ -204,9 +204,9 @@ function RegisterContent() {
           }
         }
       } else if (secteur === "Entreprise de Transformation") {
-        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, record_number: recordNumber, tax_number: taxNumber, address, country };
+        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, record_number: recordNumber || null, tax_number: taxNumber || null, address, country };
       } else if (secteur === "Institution") {
-        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, legal_number: legalNumber, website, address, country };
+        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, legal_number: legalNumber || null, website: website || null, address, country };
       } else if (secteur === "Magasin/Boutique") {
         userData = { ...userData, store_name: storeName, store_address: storeAddress, person_to_call: personToCall, ptc_number: ptcNumber, address, country };
       }
