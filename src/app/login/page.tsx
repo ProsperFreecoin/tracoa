@@ -131,27 +131,28 @@ export default function LoginScreen() {
 
         <div className="flex justify-center mb-6">
           <GoogleLogin
-            onSuccess={async credentialResponse => {
-              if (credentialResponse.credential) {
-                setIsLoading(true);
-                setError("");
-                try {
-                  const tokens = await loginWithGoogle(credentialResponse.credential);
-                  const success = await handleAuthSuccess(tokens);
-                  if (success) {
-                    router.push("/");
-                  } else {
-                    setError("Erreur lors de la récupération du profil Google.");
-                    setIsLoading(false);
-                  }
-                } catch (err: any) {
-                  setError(err.message || "La connexion Google a échoué.");
+            onSuccess={async (credentialResponse) => {
+              if (!credentialResponse.credential) {
+                setError("Token Google manquant.");
+                return;
+              }
+              setIsLoading(true);
+              setError("");
+              try {
+                const tokens = await loginWithGoogle(credentialResponse.credential);
+                const success = await handleAuthSuccess(tokens);
+                if (success) {
+                  router.push("/");
+                } else {
+                  setError("Erreur lors de la récupération du profil.");
                   setIsLoading(false);
                 }
+              } catch (err: any) {
+                setError(err.message || "La connexion avec Google a échoué.");
+                setIsLoading(false);
               }
             }}
             onError={() => {
-              console.log('Login Failed');
               setError("La connexion avec Google a échoué.");
             }}
             useOneTap
