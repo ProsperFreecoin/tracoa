@@ -1,6 +1,5 @@
 from django.db import models
 from user.models import TracaoUser
-from stock.models import Batch
 import uuid
 
 
@@ -25,7 +24,7 @@ class TraceabilityEvent(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='traceability_events')
+    batch = models.ForeignKey('stock.Batch', on_delete=models.CASCADE, related_name='traceability_events')
     event_type = models.CharField(max_length=30, choices=EVENT_TYPES)
 
     actor = models.ForeignKey(
@@ -52,7 +51,7 @@ class TraceabilityEvent(models.Model):
         ]
 
     def __str__(self):
-        return f"[{self.event_type}] Lot {self.batch.unique_code} — {self.timestamp:%Y-%m-%d %H:%M}"
+        return f"[{self.event_type}] Lot {self.batch_id} — {self.timestamp:%Y-%m-%d %H:%M}"
 
 
 
@@ -73,7 +72,7 @@ class BatchCertification(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name='certifications')
+    batch = models.ForeignKey('stock.Batch', on_delete=models.CASCADE, related_name='certifications')
     certifier = models.ForeignKey(
         TracaoUser, on_delete=models.CASCADE,
         related_name='issued_certifications',
@@ -87,4 +86,4 @@ class BatchCertification(models.Model):
     notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.certification_name} — {self.batch.unique_code}"
+        return f"{self.certification_name} — {self.batch_id}"

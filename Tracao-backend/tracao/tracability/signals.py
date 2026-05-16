@@ -6,7 +6,6 @@ on enregistre l'événement dans TraceabilityEvent ET sur la blockchain.
 """
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from stock.models import Batch, BatchTransfer
 from .models import TraceabilityEvent
 from .blockchain import blockchain
 
@@ -14,7 +13,7 @@ from .blockchain import blockchain
 
 # Signal 1 : Lot validé → enregistrement blockchain
 
-@receiver(post_save, sender=Batch)
+@receiver(post_save, sender='stock.Batch')
 def on_batch_approved(sender, instance, created, **kwargs):
     """
     Quand un lot passe au statut 'approved' (validé par la coopérative)
@@ -55,7 +54,7 @@ def on_batch_approved(sender, instance, created, **kwargs):
 
     # Sauvegarder le hash blockchain sur le lot
     if tx_hash:
-        Batch.objects.filter(pk=instance.pk).update(blockchain_tx_hash=tx_hash)
+        instance.__class__.objects.filter(pk=instance.pk).update(blockchain_tx_hash=tx_hash)
 
     # 📋 Enregistrement dans le journal de traçabilité
     TraceabilityEvent.objects.create(
@@ -73,7 +72,7 @@ def on_batch_approved(sender, instance, created, **kwargs):
 
 # Signal 2 : Transfert confirmé → log blockchain
 
-@receiver(post_save, sender=BatchTransfer)
+@receiver(post_save, sender='stock.BatchTransfer')
 def on_batch_transfer_confirmed(sender, instance, created, **kwargs):
     """
     Quand un BatchTransfer est confirmé (statut 'confirmed') par le destinataire,
@@ -105,7 +104,7 @@ def on_batch_transfer_confirmed(sender, instance, created, **kwargs):
 
     # Sauvegarder le hash blockchain sur le transfert
     if tx_hash:
-        BatchTransfer.objects.filter(pk=instance.pk).update(blockchain_tx_hash=tx_hash)
+        instance.__class__.objects.filter(pk=instance.pk).update(blockchain_tx_hash=tx_hash)
 
     # 📋 Journal de traçabilité
     TraceabilityEvent.objects.create(

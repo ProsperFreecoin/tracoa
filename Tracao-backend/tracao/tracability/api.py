@@ -8,7 +8,6 @@ import io
 from ninja_extra import api_controller, route
 from ninja.responses import Response
 from tracability.models import TraceabilityEvent, BatchCertification
-from stock.models import Batch
 from user.models import TracaoUser
 from tracability.schemas import (
     QRCodeBatchSchema,
@@ -39,9 +38,10 @@ class TracabilityController:
         Retourne toutes les informations d'un lot : producteur, parcelle GPS,
         historique complet et vérification blockchain.
 
-        Utilisable par : agriculteurs, coopératives, exportateurs,
+        Utilisateurs : agriculteurs, coopératives, exportateurs,
         importateurs EU, organismes EUDR.
         """
+        from stock.models import Batch
         batch = get_object_or_404(
             Batch.objects.select_related('farmer', 'parcel')
                          .prefetch_related('traceability_events', 'certifications'),
@@ -109,6 +109,7 @@ class TracabilityController:
         Utilisé pour imprimer l'étiquette physique sur les sacs de café/cacao.
         """
         # Vérifier que le lot existe
+        from stock.models import Batch
         get_object_or_404(Batch, unique_code=unique_code)
 
         # URL que le QR code encode (pointant vers l'API de vérification)
@@ -144,6 +145,7 @@ class TracabilityController:
         Retourne l'historique complet de traçabilité d'un lot.
         Vue orientée audit : toutes les étapes depuis la ferme jusqu'à l'export.
         """
+        from stock.models import Batch
         batch = get_object_or_404(
             Batch.objects.select_related('farmer', 'parcel')
                          .prefetch_related('traceability_events', 'certifications'),
@@ -228,6 +230,7 @@ class TracabilityController:
         Permet à un organisme de certification (is_certifier=True) d'apposer
         un label sur un lot. Enregistré en base ET sur la blockchain.
         """
+        from stock.models import Batch
         batch = get_object_or_404(Batch, unique_code=data.unique_code)
         certifier = get_object_or_404(TracaoUser, id=data.certifier_id)
 
@@ -270,6 +273,7 @@ class TracabilityController:
         Liste tous les lots enregistrés avec leur statut.
         Utile pour le tableau de bord administrateur.
         """
+        from stock.models import Batch
         batches = Batch.objects.select_related('farmer', 'parcel').all()
         return [
             {

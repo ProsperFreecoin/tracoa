@@ -2,7 +2,6 @@ from ninja import ModelSchema, Schema
 from typing import List, Optional
 from datetime import datetime
 from tracability.models import TraceabilityEvent, BatchCertification
-from stock.models import Batch
 
 
 
