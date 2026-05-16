@@ -52,18 +52,47 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
     return `LOT-${annee}-${numero}`;
   };
 
-  const ajouterLot = async (params: Omit<Lot, 'id' | 'lotId' | 'dateEnregistrement' | 'statut' | 'syncBlockchain'>): Promise<Lot> => {
+  const ajouterLot = async (params: Omit<Lot, 'id' | 'lotId' | 'dateEnregistrement' | 'statut' | 'syncBlockchain'> & { agriculteurNom: string }): Promise<Lot> => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // In a pure Django setup, we should probably call pushLotToDjangoBlockchain immediately
-      // or a simpler endpoint to just create the record.
-      // For now, let's simulate the local object and push it.
-      
+      const { DJANGO_API_BASE } = await import("../lib/djangoApi");
+      const token = localStorage.getItem("tracao_token");
+
+      // Préparation du payload pour Django
+      const stockProducerPayload = {
+        producer: agriculteur?.djangoId,
+        cooperative: params.cooperativeId ? parseInt(params.cooperativeId) : null,
+        weight: params.poidsKg,
+        date: new Date(params.dateRecolte).toISOString().split('T')[0],
+        product_type: params.typeProduit,
+        origin: "Django Mobile",
+        surface_size: 0,
+        production_size: params.poidsKg,
+        farm_id: params.farmId
+      };
+
+      const res = await fetch(`${DJANGO_API_BASE}/stock/stock_producer`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(stockProducerPayload)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText);
+      }
+
+      const djangoLotData = await res.json();
+
+      // Mappage de la réponse Django vers notre modèle local
       const lot: Lot = {
-        id: Math.random().toString(36).substring(7),
-        lotId: genererLotId(),
+        id: djangoLotData.id.toString(),
+        lotId: `LOT-DJ-${djangoLotData.id}`,
         agriculteurId: params.agriculteurId,
         cooperativeId: params.cooperativeId,
         typeProduit: params.typeProduit,
@@ -71,7 +100,7 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
         latitude: params.latitude,
         longitude: params.longitude,
         dateRecolte: params.dateRecolte,
-        dateEnregistrement: new Date().toISOString(),
+        dateEnregistrement: djangoLotData.date || new Date().toISOString(),
         statut: 'en_attente_magasinier',
         photoPath: params.photoPath,
         notesQualite: params.notesQualite,
@@ -79,9 +108,6 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
         syncBlockchain: false,
         farmId: params.farmId,
       };
-
-      // In pure Django, we would POST to /stock/stock_producer here
-      // if the user is a producer.
       
       setLots(prev => [lot, ...prev]);
       return lot;

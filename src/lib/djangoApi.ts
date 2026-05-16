@@ -35,12 +35,20 @@ export const registerUser = async (user: any, role: string, certificationFile?: 
       body,
     });
 
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(JSON.stringify(errorData));
+    const text = await res.text();
+    let data: any = {};
+    
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (e) {
+      data = { detail: text };
     }
 
-    return await res.json();
+    if (!res.ok) {
+      throw new Error(JSON.stringify(data));
+    }
+
+    return data;
   } catch (err: any) {
     console.error("ERREUR INSCRIPTION DJANGO:", err);
     throw err;
