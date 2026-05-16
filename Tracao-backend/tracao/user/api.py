@@ -25,7 +25,7 @@ class UserController:
 
     # ─── GOOGLE OAUTH ──────────────────────────────────────────────────────────
 
-    def _create_or_update_user(self, email, password, role_flags: dict, defaults: dict, is_verified=True):
+    def _create_or_update_user(self, email, password, role_flags: dict, defaults: dict, is_verified=False):
         """Helper pour créer ou mettre à jour un utilisateur non vérifié."""
         defaults.pop('email', None)
         defaults.pop('password', None)
