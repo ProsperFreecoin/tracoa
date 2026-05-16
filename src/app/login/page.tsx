@@ -46,7 +46,9 @@ export default function LoginScreen() {
                  user.is_transformer ? "Entreprise de Transformation" : "Institution"
       };
       await connecter(mappedAgri as any, tokens.access);
+      return true;
     }
+    return false;
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -56,7 +58,13 @@ export default function LoginScreen() {
     try {
       // 1. Connexion Django uniquement
       const tokens = await loginUser(email, password);
-      await handleAuthSuccess(tokens);
+      const success = await handleAuthSuccess(tokens);
+      if (success) {
+        router.push("/");
+      } else {
+        setError("Erreur lors de la récupération du profil.");
+        setIsLoading(false);
+      }
     } catch (err: any) {
       console.error(err);
       setError("Email ou mot de passe incorrect.");
