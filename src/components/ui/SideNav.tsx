@@ -12,6 +12,7 @@ const farmerNavItems = [
   { href: "/nouveau-lot", icon: PlusCircleIcon, label: "Nouveau Lot" },
   { href: "/suivi", icon: HistoryIcon, label: "Suivi des Lots" },
   { href: "/mes-lots", icon: ListIcon, label: "Mes Lots" },
+  { href: "/transactions", icon: ArrowRightLeftIcon, label: "Transactions" },
   { href: "/profil", icon: SettingsIcon, label: "Profil" },
 ];
 
