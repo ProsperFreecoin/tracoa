@@ -130,36 +130,6 @@ export default function LoginScreen() {
           <span className="text-xs font-bold text-tracao-choco-light opacity-50 uppercase tracking-wider">ou</span>
           <div className="flex-1 h-px bg-tracao-border-light"></div>
         </div>
-
-        <div className="flex justify-center mb-6">
-          <GoogleLogin
-            onSuccess={async (credentialResponse) => {
-              if (!credentialResponse.credential) {
-                setError("Token Google manquant.");
-                return;
-              }
-              setIsLoading(true);
-              setError("");
-              try {
-                const tokens = await loginWithGoogle(credentialResponse.credential);
-                const success = await handleAuthSuccess(tokens);
-                if (success) {
-                  router.push("/");
-                } else {
-                  setError("Erreur lors de la récupération du profil.");
-                  setIsLoading(false);
-                }
-              } catch (err: any) {
-                setError(err.message || "La connexion avec Google a échoué.");
-                setIsLoading(false);
-              }
-            }}
-            onError={() => {
-              setError("La connexion avec Google a échoué.");
-            }}
-          />
-        </div>
-
         <div className="mt-6 text-center">
           <p className="text-sm text-tracao-choco-light">
             Pas encore de compte ?{' '}
