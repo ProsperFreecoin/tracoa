@@ -65,145 +65,104 @@ export default function DashboardScreen() {
         </div>
       </div>
 
-      {/* 3 Horizontal Cards */}
-      <div className="flex gap-4 overflow-x-auto pb-4 snap-x hide-scrollbar">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         {/* Card 1: Lots */}
-        <div className="min-w-[280px] lg:min-w-[320px] bg-gradient-to-br from-[#4A3018] to-[#6A4524] rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden snap-start shrink-0 flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-[#4A3018] to-[#6A4524] rounded-[2rem] p-8 text-white shadow-lg relative overflow-hidden flex flex-col justify-between min-h-[180px]">
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
           <div className="flex justify-between items-start mb-8 relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#4A3018]">
-                <LeafIcon size={20} />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#4A3018]">
+                <LeafIcon size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-base">Total des lots</h3>
-                <p className="text-[10px] text-white/60">Tous vos lots que vous avez crées</p>
+                <h3 className="font-bold text-lg">Total des lots</h3>
+                <p className="text-xs text-white/60">Gestion globale de vos récoltes</p>
               </div>
             </div>
             <div className="text-white/50">•••</div>
           </div>
           <div className="relative z-10">
             <div className="flex items-end gap-3 mb-4">
-              <span className="text-3xl font-black">{totalLots} Lots</span>
-              <span className="text-[10px] bg-white text-[#4A3018] font-bold px-2 py-0.5 rounded-full mb-1">
+              <span className="text-4xl font-black">{totalLots} Lots</span>
+              <span className="text-[11px] bg-white text-[#4A3018] font-bold px-3 py-1 rounded-full mb-1">
                 {lotsSyncronises} Lots validés
               </span>
             </div>
             <Link href="/mes-lots" className="text-sm font-semibold text-white/80 flex justify-between items-center hover:text-white transition-colors">
-              Voir les détails <ArrowRightIcon size={16} />
+              Voir la liste complète <ArrowRightIcon size={16} />
             </Link>
           </div>
         </div>
 
-        {/* Card 2: Parcelles */}
-        <div className="min-w-[280px] lg:min-w-[320px] bg-white border border-tracao-border-light rounded-[2rem] p-6 text-tracao-choco shadow-sm snap-start shrink-0 flex flex-col justify-between">
+        {/* Card 2: Statistiques Poids */}
+        <div className="bg-white border border-tracao-border-light rounded-[2rem] p-8 text-tracao-choco shadow-sm flex flex-col justify-between min-h-[180px]">
           <div className="flex justify-between items-start mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-tracao-cream-mid rounded-xl flex items-center justify-center text-tracao-choco-pale">
-                <MapPinIcon size={20} />
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-tracao-cream-mid rounded-2xl flex items-center justify-center text-tracao-choco-pale">
+                <BarChart2Icon size={24} />
               </div>
               <div>
-                <h3 className="font-bold text-base">Mes parcelles</h3>
-                <p className="text-[10px] text-tracao-choco-pale">Une vue directe sur vos parcelles</p>
+                <h3 className="font-bold text-lg">Total Récolté</h3>
+                <p className="text-xs text-tracao-choco-pale">Volume total de votre production</p>
               </div>
             </div>
             <div className="text-tracao-choco-pale">•••</div>
           </div>
           <div>
             <div className="mb-4">
-              <span className="text-3xl font-black">1 <span className="text-lg font-bold text-tracao-choco-light">parcelle / 200 Ha</span></span>
+              <span className="text-4xl font-black">{totalPoidsKg.toFixed(1)} <span className="text-xl font-bold text-tracao-choco-light">Kg</span></span>
             </div>
             <div className="text-sm font-semibold text-tracao-choco-pale flex justify-between items-center">
-              Visiter sur la carte <MapPinIcon size={16} />
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Productions */}
-        <div className="min-w-[280px] lg:min-w-[320px] bg-white border border-tracao-border-light rounded-[2rem] p-6 text-tracao-choco shadow-sm snap-start shrink-0 flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-tracao-cream-mid rounded-xl flex items-center justify-center text-tracao-choco-pale">
-                <BarChart2Icon size={20} />
-              </div>
-              <div>
-                <h3 className="font-bold text-base">Productions</h3>
-                <p className="text-[10px] text-tracao-choco-pale">Où en êtes vous sur vos récoltes</p>
-              </div>
-            </div>
-            <div className="text-tracao-choco-pale">•••</div>
-          </div>
-          <div>
-            <div className="mb-4">
-              <span className="text-3xl font-black">{totalPoidsKg.toFixed(0)} <span className="text-lg font-bold text-tracao-choco-light">Kg</span></span>
-            </div>
-            <div className="text-sm font-semibold text-tracao-choco-pale flex justify-between items-center">
-              Visiter sur la carte <MapPinIcon size={16} />
+              Détails de production <TrendingUpIcon size={16} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Grid: Statuts & Map */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-2 mb-10">
-        
-        {/* Statuts des lots */}
-        <div className="lg:col-span-2 bg-white border border-tracao-border-light rounded-[2rem] p-6 shadow-sm">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-6 h-full">
-            {/* Prêt */}
-            <div className="flex flex-col items-center justify-center text-center p-4 border-r border-b border-tracao-border-light">
-              <div className="w-8 h-8 rounded-full border-2 border-tracao-forest text-tracao-forest flex items-center justify-center mb-2">
-                <CheckCircle2Icon size={16} />
-              </div>
-              <p className="text-sm font-bold text-tracao-choco">Lots {totalLots}</p>
-              <p className="text-xs text-tracao-choco-light mt-1">Prêt pour la recolte</p>
-              <button className="mt-4 px-4 py-1.5 bg-tracao-cream-mid text-tracao-choco-pale text-xs font-bold rounded-full">Voir</button>
+      {/* Statuts des lots */}
+      <div className="bg-white border border-tracao-border-light rounded-[3rem] p-8 shadow-sm mb-10">
+        <h3 className="text-lg font-bold text-tracao-choco mb-6 flex items-center gap-2">
+          <ClockIcon size={20} className="text-tracao-cacao" /> Suivi de vos lots
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Prêt */}
+          <div className="flex flex-col items-center justify-center text-center p-6 bg-tracao-cream-light/50 rounded-3xl border border-tracao-border-light">
+            <div className="w-12 h-12 rounded-2xl border-2 border-tracao-forest text-tracao-forest flex items-center justify-center mb-3">
+              <CheckCircle2Icon size={24} />
             </div>
-            
-            {/* Non validé */}
-            <div className="flex flex-col items-center justify-center text-center p-4 border-b border-tracao-border-light lg:border-r">
-              <div className="w-8 h-8 rounded-full border-2 border-tracao-error text-tracao-error flex items-center justify-center mb-2">
-                <XIcon size={16} />
-              </div>
-              <p className="text-sm font-bold text-tracao-choco">Lots 0</p>
-              <p className="text-xs text-tracao-choco-light mt-1">Lot non validé</p>
-              <button className="mt-4 px-4 py-1.5 bg-tracao-cream-mid text-tracao-choco-pale text-xs font-bold rounded-full">Revérifier</button>
+            <p className="text-base font-bold text-tracao-choco">Lots {totalLots}</p>
+            <p className="text-xs text-tracao-choco-light mt-1">Prêt pour la récolte</p>
+            <Link href="/mes-lots" className="mt-4 px-6 py-2 bg-white border border-tracao-border text-tracao-choco-pale text-xs font-bold rounded-full hover:bg-tracao-cream-mid transition-colors">Voir</Link>
+          </div>
+          
+          {/* Non validé */}
+          <div className="flex flex-col items-center justify-center text-center p-6 bg-tracao-cream-light/50 rounded-3xl border border-tracao-border-light">
+            <div className="w-12 h-12 rounded-2xl border-2 border-tracao-error text-tracao-error flex items-center justify-center mb-3">
+              <XIcon size={24} />
             </div>
+            <p className="text-base font-bold text-tracao-choco">0 Lot rejeté</p>
+            <p className="text-xs text-tracao-choco-light mt-1">Aucune anomalie détectée</p>
+            <button className="mt-4 px-6 py-2 bg-white border border-tracao-border text-tracao-choco-pale text-xs font-bold rounded-full opacity-50 cursor-not-allowed">Revérifier</button>
+          </div>
 
-            {/* En attente */}
-            <div className="flex flex-col items-center justify-center text-center p-4 border-r border-tracao-border-light lg:border-r-0 lg:border-b-0">
-              <p className="text-sm font-bold text-tracao-choco">L001</p>
-              <p className="text-xs text-tracao-choco-light mt-1">En attente</p>
-              <Link href="/mes-lots" className="mt-4 text-xs font-bold text-tracao-cacao underline">Voir</Link>
+          {/* En attente */}
+          <div className="flex flex-col items-center justify-center text-center p-6 bg-tracao-cream-light/50 rounded-3xl border border-tracao-border-light">
+            <div className="w-12 h-12 rounded-2xl border-2 border-amber-400 text-amber-500 flex items-center justify-center mb-3">
+              <ClockIcon size={24} />
             </div>
-
-            {/* Voir tous les lots */}
-            <div className="flex items-center justify-center p-4 col-span-2 lg:col-span-1 lg:row-span-2">
-              <Link href="/mes-lots" className="px-6 py-3 bg-[#4A3018] text-white rounded-full font-bold text-sm flex items-center gap-2 hover:bg-[#6A4524] transition-colors shadow-md">
-                <EyeIcon size={16} /> Voir tous les lots
-              </Link>
-            </div>
+            <p className="text-base font-bold text-tracao-choco">{totalLots - lotsSyncronises} En attente</p>
+            <p className="text-xs text-tracao-choco-light mt-1">Vérification par magasin</p>
+            <Link href="/mes-lots" className="mt-4 px-6 py-2 bg-white border border-tracao-border text-tracao-choco-pale text-xs font-bold rounded-full hover:bg-tracao-cream-mid transition-colors">Suivre</Link>
           </div>
         </div>
 
-        {/* Map Placeholder */}
-        <div className="bg-white border border-tracao-border-light rounded-[2rem] p-4 shadow-sm relative overflow-hidden min-h-[250px]">
-          <div className="absolute inset-0 bg-[#F5F5F5] opacity-50 flex items-center justify-center">
-            {/* Simple static map representation */}
-            <div className="relative w-full h-full flex items-center justify-center">
-              <svg viewBox="0 0 200 200" className="w-full h-full max-w-[200px] text-[#E0E0E0] fill-current">
-                <path d="M10,50 L80,20 L150,60 L180,120 L140,180 L50,160 Z" />
-              </svg>
-              {/* Highlighted parcel */}
-              <svg viewBox="0 0 200 200" className="absolute inset-0 w-full h-full max-w-[200px] text-[#2C4A1D] fill-current mx-auto shadow-xl" style={{ transform: 'translate(20px, 30px) scale(0.6)'}}>
-                <path d="M20,60 L90,40 L160,80 L140,150 L40,130 Z" />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center pt-8 pr-4">
-                <span className="text-white text-xs font-black tracking-widest drop-shadow-md">Parcelle 1</span>
-              </div>
-            </div>
-          </div>
+        <div className="mt-8 flex justify-center">
+          <Link href="/mes-lots" className="px-8 py-4 bg-tracao-cacao text-white rounded-2xl font-bold text-base flex items-center gap-3 hover:bg-tracao-choco-mid transition-all shadow-lg hover:shadow-tracao-cacao/20">
+            <ListIcon size={20} /> Accéder à tous mes lots
+          </Link>
         </div>
+      </div>
 
       </div>
     </div>
