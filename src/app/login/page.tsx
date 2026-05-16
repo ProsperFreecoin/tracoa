@@ -157,7 +157,6 @@ export default function LoginScreen() {
             onError={() => {
               setError("La connexion avec Google a échoué.");
             }}
-            useOneTap
           />
         </div>
 

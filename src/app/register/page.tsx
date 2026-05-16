@@ -562,7 +562,6 @@ function RegisterContent() {
                   console.log('Login Failed');
                   setError("La connexion avec Google a échoué.");
                 }}
-                useOneTap
               />
             </div>
 
