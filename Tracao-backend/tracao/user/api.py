@@ -27,6 +27,10 @@ class UserController:
 
     def _create_or_update_user(self, email, password, role_flags: dict, defaults: dict, is_verified=False):
         """Helper pour créer ou mettre à jour un utilisateur non vérifié."""
+        defaults.pop('email', None)
+        defaults.pop('password', None)
+        defaults.pop('confirm_password', None)
+        
         # Nettoyage numéro de téléphone si présent
         if 'phone_number' in defaults and defaults['phone_number']:
             defaults['phone_number'] = defaults['phone_number'].replace(' ', '')
