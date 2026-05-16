@@ -2,10 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Lot, LotStatut, TypeProduit, Notification, Cooperative } from '../types';
-import { getDoc } from "firebase/firestore";
-import { collection, getDocs, query, where, setDoc, doc } from "firebase/firestore";
-import { db, auth } from "../lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { useAgriculteur } from './AgriculteurContext';
+import { getLotsForProducer, getLotsForCooperative, pushLotToDjangoBlockchain } from '../lib/djangoApi';
 
 interface LotsContextType {
   lots: Lot[];
@@ -18,7 +16,7 @@ interface LotsContextType {
   lotsSyncronises: number;
   lotsRecents: Lot[];
   ajouterLot: (params: Omit<Lot, 'id' | 'lotId' | 'dateEnregistrement' | 'statut' | 'syncBlockchain'> & { agriculteurNom: string }) => Promise<Lot>;
-  chargerDonneesDemo: (agriculteurId: string) => Promise<void>;
+  chargerLotsProducteur: (producerId: number) => Promise<void>;
   chargerLotsCooperative: (cooperativeId: string) => Promise<void>;
   trouverParId: (lotId: string) => Lot | undefined;
   accepterLot: (lotId: string, coopDjangoId: number, producerDjangoId: number, producerEmail: string) => Promise<void>;
@@ -28,35 +26,25 @@ interface LotsContextType {
 const LotsContext = createContext<LotsContextType | undefined>(undefined);
 
 export const LotsProvider = ({ children }: { children: ReactNode }) => {
+  const { agriculteur } = useAgriculteur();
   const [lots, setLots] = useState<Lot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Charger automatiquement les lots de l'utilisateur connecté
+  // Charger automatiquement les lots de l'utilisateur connecté depuis Django
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Récupérer le profil pour savoir s'il est coopérative ou producteur
-        const docSnap = await getDoc(doc(db, "agriculteurs", user.uid));
-        if (docSnap.exists()) {
-          const profile = docSnap.data();
-          if (profile.secteur === "Coopérative") {
-            await chargerLotsCooperative(user.uid);
-          } else {
-            await chargerDonneesDemo(user.uid);
-          }
-        }
+    if (agriculteur && agriculteur.djangoId) {
+      if (agriculteur.secteur === "Coopérative") {
+        chargerLotsCooperative(agriculteur.djangoId.toString());
       } else {
-        // Réinitialiser les lots à la déconnexion
-        setLots([]);
+        chargerLotsProducteur(agriculteur.djangoId);
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    } else {
+      setLots([]);
+    }
+  }, [agriculteur]);
 
   // Ne plus utiliser localStorage de manière globale pour éviter les mélanges entre utilisateurs.
-  // Les données seront chargées dynamiquement via Firebase selon l'ID de l'utilisateur.
 
   const genererLotId = () => {
     const annee = new Date().getFullYear();
@@ -69,9 +57,12 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
 
     try {
-      const lotRef = doc(collection(db, "lots"));
+      // In a pure Django setup, we should probably call pushLotToDjangoBlockchain immediately
+      // or a simpler endpoint to just create the record.
+      // For now, let's simulate the local object and push it.
+      
       const lot: Lot = {
-        id: lotRef.id,
+        id: Math.random().toString(36).substring(7),
         lotId: genererLotId(),
         agriculteurId: params.agriculteurId,
         cooperativeId: params.cooperativeId,
@@ -81,34 +72,17 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
         longitude: params.longitude,
         dateRecolte: params.dateRecolte,
         dateEnregistrement: new Date().toISOString(),
-        statut: 'en_attente_coop',
+        statut: 'en_attente_magasinier',
         photoPath: params.photoPath,
         notesQualite: params.notesQualite,
         agriculteurNom: params.agriculteurNom,
         syncBlockchain: false,
+        farmId: params.farmId,
       };
 
-      await setDoc(lotRef, lot);
-
-      // Create notification for the cooperative if one was selected
-      if (params.cooperativeId) {
-        const notifRef = doc(collection(db, "notifications"));
-        const notification: Notification = {
-          id: notifRef.id,
-          destinataireId: params.cooperativeId,
-          type: 'demande_reception',
-          date: new Date().toISOString(),
-          lu: false,
-          message: `Nouveau lot enregistré par un agriculteur. Lot ID: ${lot.lotId}`,
-          metadata: {
-            lotId: lot.lotId,
-            agriculteurId: params.agriculteurId,
-            agriculteurNom: "Agriculteur", // We could pass this in too
-          }
-        };
-        await setDoc(notifRef, notification);
-      }
-
+      // In pure Django, we would POST to /stock/stock_producer here
+      // if the user is a producer.
+      
       setLots(prev => [lot, ...prev]);
       return lot;
     } catch (e: any) {
@@ -119,34 +93,61 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const chargerDonneesDemo = async (agriculteurId: string) => {
+  const chargerLotsProducteur = async (producerId: number) => {
+    setIsLoading(true);
     try {
-      const q = query(collection(db, "lots"), where("agriculteurId", "==", agriculteurId));
-      const querySnapshot = await getDocs(q);
-      const fetchedLots: Lot[] = [];
-      querySnapshot.forEach((document) => {
-        fetchedLots.push(document.data() as Lot);
-      });
-      
-      setLots(fetchedLots.sort((a, b) => new Date(b.dateEnregistrement).getTime() - new Date(a.dateEnregistrement).getTime()));
+      const data = await getLotsForProducer(producerId);
+      const mappedLots: Lot[] = data.map((sp: any) => ({
+        id: sp.id.toString(),
+        lotId: `LOT-DJ-${sp.id}`,
+        agriculteurId: sp.producer.toString(),
+        cooperativeId: sp.cooperative.toString(),
+        typeProduit: sp.product_type as TypeProduit,
+        poidsKg: sp.weight,
+        latitude: 0, // Django doesn't store this in StockProducer yet
+        longitude: 0,
+        dateRecolte: sp.date,
+        dateEnregistrement: sp.date,
+        statut: sp.batch_number ? 'transfere' : 'en_attente_magasinier',
+        blockchainTxHash: sp.batch_number,
+        syncBlockchain: !!sp.batch_number,
+        agriculteurNom: "Producteur",
+        farmId: sp.farm
+      }));
+      setLots(mappedLots);
     } catch (e) {
-      console.error("Erreur lors de la récupération des lots :", e);
+      console.error("Erreur lots Django:", e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const chargerLotsCooperative = async (cooperativeId: string) => {
+    setIsLoading(true);
     try {
-      // Charger les lots qui sont assignés à cette coopérative
-      const q = query(collection(db, "lots"), where("cooperativeId", "==", cooperativeId));
-      const querySnapshot = await getDocs(q);
-      const fetchedLots: Lot[] = [];
-      querySnapshot.forEach((document) => {
-        fetchedLots.push(document.data() as Lot);
-      });
-      
-      setLots(fetchedLots.sort((a, b) => new Date(b.dateEnregistrement).getTime() - new Date(a.dateEnregistrement).getTime()));
+      const data = await getLotsForCooperative(parseInt(cooperativeId));
+      const mappedLots: Lot[] = data.map((so: any) => ({
+        id: so.producer_stock.id.toString(),
+        lotId: `LOT-DJ-${so.producer_stock.id}`,
+        agriculteurId: so.producer_stock.producer.toString(),
+        cooperativeId: so.cooperative.toString(),
+        typeProduit: so.producer_stock.product_type as TypeProduit,
+        poidsKg: so.producer_stock.weight,
+        latitude: 0,
+        longitude: 0,
+        dateRecolte: so.producer_stock.date,
+        dateEnregistrement: so.producer_stock.date,
+        statut: so.is_confirmed ? 'transfere' : 'en_attente_magasinier',
+        blockchainTxHash: so.producer_stock.batch_number,
+        syncBlockchain: !!so.producer_stock.batch_number,
+        agriculteurNom: "Producteur",
+        farmId: so.producer_stock.farm
+      }));
+      setLots(mappedLots);
     } catch (e) {
-      console.error("Erreur lors de la récupération des lots de la coopérative :", e);
+      console.error("Erreur lots Coop Django:", e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -154,82 +155,50 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
     return lots.find(l => l.lotId === lotId);
   };
 
-  const accepterLot = async (lotId: string, coopDjangoId: number, producerDjangoId: number, producerEmail: string) => {
+  const accepterLot = async (lotId: string, magasinierDjangoId: number, producerDjangoId: number, producerEmail: string) => {
     try {
       const lot = lots.find(l => l.lotId === lotId);
       if (!lot) return;
 
-      // 1. Appel au backend Django pour inscrire sur la Blockchain
-      const { pushLotToDjangoBlockchain } = await import('../lib/djangoApi');
-      const txHash = await pushLotToDjangoBlockchain(lot, producerDjangoId, coopDjangoId, producerEmail);
+      // Extract numeric ID from lotId (assuming format LOT-DJ-XX)
+      const stockProducerId = parseInt(lot.id);
 
-      // 2. Mettre à jour Firebase
-      const lotRef = doc(db, "lots", lot.id);
-      const updateData = {
-        statut: 'valide' as LotStatut,
-        syncBlockchain: true,
-        blockchainTxHash: txHash || `0x${Date.now().toString(16)}a3f7b` // Fallback si l'API échoue mais qu'on veut valider (mode Hackathon)
-      };
-      
-      await setDoc(lotRef, updateData, { merge: true });
+      const { DJANGO_API_BASE } = await import("../lib/djangoApi");
+      const token = localStorage.getItem("tracao_token");
 
-      // 3. Notification pour l'agriculteur
-      const notifRef = doc(collection(db, "notifications"));
-      await setDoc(notifRef, {
-        id: notifRef.id,
-        destinataireId: lot.agriculteurId,
-        type: 'info',
-        date: new Date().toISOString(),
-        lu: false,
-        message: `Votre lot ${lot.lotId} a été validé par la coopérative et enregistré sur la blockchain.`,
-        metadata: { lotId: lot.lotId }
+      const res = await fetch(`${DJANGO_API_BASE}/stock/stock_origin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          cooperative: magasinierDjangoId,
+          producer_stock: stockProducerId,
+          is_confirmed: true
+        })
       });
 
+      if (!res.ok) throw new Error("Erreur lors de la validation sur le backend");
+
       // Mettre à jour l'état local
-      setLots(prev => prev.map(l => l.lotId === lotId ? { ...l, ...updateData } : l));
-    } catch (e) {
-      console.error("Erreur lors de l'acceptation :", e);
-      throw e;
+      setLots(prev => prev.map(l => 
+        l.lotId === lotId ? { ...l, statut: 'transfere' as const, syncBlockchain: true } : l
+      ));
+    } catch (error) {
+      console.error("Erreur accepterLot:", error);
+      throw error;
     }
   };
 
   const refuserLot = async (lotId: string, motifRejet: string) => {
-    try {
-      const lot = lots.find(l => l.lotId === lotId);
-      if (!lot) return;
-
-      const lotRef = doc(db, "lots", lot.id);
-      const updateData = {
-        statut: 'rejete' as LotStatut,
-        motifRejet: motifRejet
-      };
-      
-      await setDoc(lotRef, updateData, { merge: true });
-
-      // Notification pour l'agriculteur
-      const notifRef = doc(collection(db, "notifications"));
-      await setDoc(notifRef, {
-        id: notifRef.id,
-        destinataireId: lot.agriculteurId,
-        type: 'info',
-        date: new Date().toISOString(),
-        lu: false,
-        message: `Votre lot ${lot.lotId} a été rejeté par la coopérative. Motif: ${motifRejet}`,
-        metadata: { lotId: lot.lotId }
-      });
-
-      // Mettre à jour l'état local
-      setLots(prev => prev.map(l => l.lotId === lotId ? { ...l, ...updateData } : l));
-    } catch (e) {
-      console.error("Erreur lors du refus :", e);
-      throw e;
-    }
+    setLots(prev => prev.map(l => l.lotId === lotId ? { ...l, statut: 'rejete', notesQualite: motifRejet } : l));
   };
 
   const totalLots = lots.length;
   const totalPoidsKg = lots.reduce((sum, l) => sum + l.poidsKg, 0);
   const lotsExportes = lots.filter(l => l.statut === 'exporte' || l.statut === 'eudrConforme').length;
-  const lotsEnAttente = lots.filter(l => l.statut === 'en_attente_coop').length;
+  const lotsEnAttente = lots.filter(l => l.statut === 'en_attente_magasinier').length;
   const lotsSyncronises = lots.filter(l => l.syncBlockchain && l.blockchainTxHash).length;
   const lotsRecents = [...lots].sort((a, b) => new Date(b.dateEnregistrement).getTime() - new Date(a.dateEnregistrement).getTime()).slice(0, 5);
 
@@ -245,7 +214,7 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
       lotsSyncronises,
       lotsRecents,
       ajouterLot,
-      chargerDonneesDemo,
+      chargerLotsProducteur,
       chargerLotsCooperative,
       trouverParId,
       accepterLot,

@@ -39,60 +39,130 @@ export default function LandingPage() {
   if (step === 2) {
     return (
       <div className="relative min-h-screen bg-[#0f0a07] flex flex-col items-center justify-center p-6 font-sans overflow-hidden">
+        {/* Background Animation */}
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="absolute inset-0 bg-cover bg-center opacity-20"
+          className="absolute inset-0 bg-cover bg-center opacity-30"
           style={{ backgroundImage: "url('/welcome-bg.png')" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#0f0a07] via-transparent to-[#0f0a07]" />
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.6 }}
+          className="absolute inset-0 bg-gradient-to-b from-[#0f0a07] via-transparent to-[#0f0a07]" 
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            rotate: [0, 5, 0],
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+          className="absolute -top-1/4 -right-1/4 w-[600px] h-[600px] bg-[#e2a856]/10 blur-[120px] rounded-full"
+        />
         
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", damping: 20 }}
           className="relative z-10 w-full max-w-lg"
         >
           <div className="text-center mb-10">
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="w-16 h-16 bg-[#e2a856] rounded-full mx-auto mb-4 flex items-center justify-center shadow-[0_0_20px_rgba(226,168,86,0.5)]"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.2 }}
+              className="w-20 h-20 bg-[#e2a856] rounded-[2rem] mx-auto mb-6 flex items-center justify-center shadow-[0_0_40px_rgba(226,168,86,0.3)] rotate-12"
             >
-              <UsersIcon className="text-[#0f0a07]" size={32} />
+              <UsersIcon className="text-[#0f0a07]" size={36} />
             </motion.div>
-            <h2 className="text-4xl font-black text-white mb-3 tracking-tighter uppercase">CRÉER UN COMPTE</h2>
-            <p className="text-white/60 text-lg font-medium">Choisissez votre rôle dans la chaîne</p>
+            <motion.h2 
+              initial={{ opacity: 0, filter: "blur(10px)" }}
+              animate={{ opacity: 1, filter: "blur(0px)" }}
+              transition={{ delay: 0.3 }}
+              className="text-4xl md:text-5xl font-black text-white mb-3 tracking-tighter uppercase"
+            >
+              VOTRE <span className="text-[#e2a856]">RÔLE</span>
+            </motion.h2>
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-white/60 text-lg font-medium"
+            >
+              Sélectionnez votre type de compte
+            </motion.p>
           </div>
 
-          <div className="grid gap-3 overflow-y-auto max-h-[50vh] pr-2 custom-scrollbar">
-            {accountTypes.map((type, index) => (
+          <motion.div 
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.1
+                }
+              }
+            }}
+            initial="hidden"
+            animate="show"
+            className="grid gap-4 overflow-y-auto max-h-[55vh] pr-2 custom-scrollbar py-2"
+          >
+            {accountTypes.map((type) => (
               <motion.button
                 key={type.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
+                variants={{
+                  hidden: { opacity: 0, x: -30, filter: "blur(5px)" },
+                  show: { opacity: 1, x: 0, filter: "blur(0px)" }
+                }}
+                whileHover={{ 
+                  scale: 1.05, 
+                  x: 8,
+                  backgroundColor: "rgba(255, 255, 255, 0.12)",
+                  borderColor: "rgba(226, 168, 86, 0.6)",
+                  boxShadow: "0 10px 30px -10px rgba(226, 168, 86, 0.3)"
+                }}
+                whileTap={{ scale: 0.96 }}
                 onClick={() => handleSelectType(type.id)}
-                className="flex items-center p-4 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl hover:bg-white/10 hover:border-[#e2a856]/50 transition-all text-left group relative overflow-hidden"
+                className="flex items-center p-5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] transition-all text-left group relative overflow-hidden shadow-xl"
               >
-                <div className="w-12 h-12 rounded-xl bg-[#825026]/40 flex items-center justify-center text-[#e2a856] group-hover:scale-110 transition-transform">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#e2a856]/0 via-[#e2a856]/10 to-[#e2a856]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+                
+                <div className="w-14 h-14 rounded-2xl bg-[#825026]/40 flex items-center justify-center text-[#e2a856] group-hover:bg-[#e2a856] group-hover:text-[#0f0a07] transition-all duration-300 shadow-inner group-hover:rotate-6">
                   {type.icon}
                 </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="font-bold text-white text-lg leading-tight">{type.label}</h3>
-                  <p className="text-white/40 text-xs mt-0.5">{type.description}</p>
+                <div className="ml-5 flex-1">
+                  <h3 className="font-bold text-white text-xl leading-tight group-hover:text-[#e2a856] transition-colors">{type.label}</h3>
+                  <p className="text-white/40 text-[11px] mt-1 font-medium group-hover:text-white/60 transition-colors">{type.description}</p>
                 </div>
-                <ChevronRightIcon className="text-white/20 group-hover:text-[#e2a856] group-hover:translate-x-1 transition-all" size={24} />
+                <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-[#e2a856]/20 transition-all">
+                  <ChevronRightIcon className="text-white/20 group-hover:text-[#e2a856] transition-all" size={20} />
+                </div>
               </motion.button>
             ))}
-          </div>
+          </motion.div>
 
-          <button
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1 }}
             onClick={() => setStep(1)}
-            className="mt-8 w-full py-4 text-white/50 hover:text-white transition-colors text-base font-bold flex items-center justify-center gap-3 bg-white/5 rounded-2xl border border-white/5"
+            className="mt-10 w-full py-5 text-white/50 hover:text-white transition-all text-base font-bold flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 rounded-[2rem] border border-white/5 group"
           >
-            <ArrowRightIcon className="rotate-180 w-5 h-5" />
+            <ArrowRightIcon className="rotate-180 w-5 h-5 group-hover:-translate-x-2 transition-transform" />
             RETOUR AUX INFOS
-          </button>
+          </motion.button>
+          
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1 }}
+            className="mt-6 text-center text-white/50 text-sm font-medium"
+          >
+            Déjà un compte ?{" "}
+            <Link href="/login" className="text-[#e2a856] font-bold hover:underline">
+              Se connecter
+            </Link>
+          </motion.p>
         </motion.div>
       </div>
     );
@@ -125,7 +195,7 @@ export default function LandingPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="text-7xl md:text-[10rem] lg:text-[13rem] font-black mb-10 tracking-tighter leading-[0.8] uppercase"
+            className="text-4xl sm:text-5xl md:text-[8rem] lg:text-[11rem] font-black mb-6 md:mb-10 tracking-tighter leading-[0.9] md:leading-[0.8] uppercase"
           >
             CACAO <span className="text-transparent border-text-white">&amp;</span> CAFÉ <br/>
             <span className="text-[#e2a856]">DU TOGO</span>
@@ -135,13 +205,13 @@ export default function LandingPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="text-2xl md:text-4xl text-white/80 w-full max-w-none mx-auto mb-16 font-medium leading-tight px-4"
+            className="text-base sm:text-lg md:text-3xl lg:text-4xl text-white/80 w-full max-w-4xl mx-auto mb-10 md:mb-16 font-medium leading-tight px-4"
           >
-            <p className="mb-8">
-              Aujourd&apos;hui, la filière café-cacao représente un <span className="text-white font-black underline decoration-[#e2a856] decoration-4 underline-offset-8">levier important</span> de développement rural.
+            <p className="mb-4 md:mb-8">
+              La filière café-cacao est un <span className="text-white font-black underline decoration-[#e2a856] decoration-2 md:decoration-4 underline-offset-4 md:underline-offset-8">levier majeur</span> de développement rural au Togo.
             </p>
-            <p className="text-white/50 text-xl md:text-2xl">
-              Elle mobilise plusieurs centaines de milliers de producteurs, principalement dans les régions forestières du pays.
+            <p className="text-white/50 text-base md:text-xl lg:text-2xl">
+              Elle mobilise des centaines de milliers de producteurs engagés pour l&apos;excellence.
             </p>
           </motion.div>
 
@@ -149,12 +219,12 @@ export default function LandingPage() {
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.6 }}
-            whileHover={{ scale: 1.05, boxShadow: "0 20px 60px rgba(130,80,38,0.6)" }}
+            whileHover={{ scale: 1.05, backgroundColor: "#a66b3d", boxShadow: "0 20px 60px rgba(130,80,38,0.6)" }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setStep(2)}
-            className="px-20 py-8 bg-[#825026] text-white font-black text-3xl rounded-full transition-all shadow-[0_20px_60px_rgba(130,80,38,0.3)] flex items-center justify-center gap-4 group mx-auto"
+            className="px-10 md:px-20 py-6 md:py-8 bg-[#825026] text-white font-black text-xl md:text-3xl rounded-full transition-all shadow-[0_20px_60px_rgba(130,80,38,0.3)] flex items-center justify-center gap-4 group mx-auto"
           >
-            DÉMARRER <ArrowRightIcon size={32} className="group-hover:translate-x-3 transition-transform" />
+            DÉMARRER <ArrowRightIcon size={28} className="group-hover:translate-x-3 transition-transform" />
           </motion.button>
         </div>
 
@@ -174,7 +244,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true, margin: "-100px" }}
-            className="text-6xl md:text-8xl font-black mb-20 tracking-tighter leading-none uppercase text-center"
+            className="text-4xl sm:text-5xl md:text-8xl font-black mb-12 md:mb-20 tracking-tighter leading-none uppercase text-center"
           >
             ÉTAT DE LA <span className="text-[#e2a856]">FILIÈRE AU TOGO</span>
           </motion.h2>
@@ -225,18 +295,18 @@ export default function LandingPage() {
           transition={{ duration: 0.8 }}
           className="w-full relative z-10"
         >
-          <h2 className="text-7xl md:text-9xl font-black mb-10 tracking-tighter leading-none uppercase">
+          <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-9xl font-black mb-8 md:mb-10 tracking-tighter leading-none uppercase">
             REJOIGNEZ <br/>
             <span className="text-[#e2a856]">L&apos;ÉCOSYSTÈME</span>
           </h2>
-          <p className="text-2xl md:text-3xl text-white/60 mb-16 max-w-5xl mx-auto font-medium">
+          <p className="text-lg md:text-2xl lg:text-3xl text-white/60 mb-10 md:mb-16 max-w-5xl mx-auto font-medium px-4">
             Que vous soyez agriculteur, acheteur ou régulateur, Tracao est l&apos;outil dont vous avez besoin pour valoriser la filière.
           </p>
           <motion.button 
             whileHover={{ scale: 1.05, boxShadow: "0 0 50px rgba(226,168,86,0.3)" }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setStep(2)}
-            className="px-24 py-10 bg-white text-[#0f0a07] font-black text-4xl rounded-full hover:bg-[#e2a856] transition-colors uppercase relative overflow-hidden group"
+            className="px-12 md:px-24 py-6 md:py-10 bg-white text-[#0f0a07] font-black text-xl md:text-4xl rounded-full hover:bg-[#e2a856] transition-colors uppercase relative overflow-hidden group"
           >
             <motion.div 
               className="absolute inset-0 bg-white/20 w-full"
@@ -250,7 +320,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="py-16 px-10 border-t border-white/5 text-center text-white/20 text-base font-black uppercase tracking-[0.4em]">
-        &copy; 2024 TRACAO · L&apos;HÉRITAGE DE LA TERRE TOGOLAISE
+        &copy; 2026 TRACAO · L&apos;HÉRITAGE DE LA TERRE TOGOLAISE
       </footer>
     </div>
   );
@@ -264,15 +334,15 @@ function StatCard({ icon, value, label, detail, index = 0 }: { icon: any, value:
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.6, delay: index * 0.15 }}
       whileHover={{ scale: 1.03, backgroundColor: "rgba(255, 255, 255, 0.08)", y: -10 }}
-      className="bg-white/5 border border-white/10 p-12 rounded-[3rem] transition-colors flex flex-col items-center text-center h-full relative group overflow-hidden"
+      className="bg-white/5 border border-white/10 p-8 md:p-12 rounded-[2rem] md:rounded-[3rem] transition-colors flex flex-col items-center text-center h-full relative group overflow-hidden"
     >
       <div className="absolute inset-0 bg-gradient-to-t from-[#e2a856]/0 to-[#e2a856]/0 group-hover:to-[#e2a856]/5 transition-colors" />
-      <div className="mb-8 scale-[1.5] group-hover:scale-[1.7] transition-transform">
+      <div className="mb-4 md:mb-6 md:mb-8 scale-100 md:scale-[1.5] group-hover:scale-[1.2] md:group-hover:scale-[1.7] transition-transform">
         {icon}
       </div>
-      <div className="text-7xl font-black mb-4 tracking-tighter">{value}</div>
-      <div className="text-sm font-black text-[#e2a856] tracking-[0.3em] uppercase mb-6">{label}</div>
-      <p className="text-lg text-white/40 leading-tight font-medium">{detail}</p>
+      <div className="text-5xl md:text-7xl font-black mb-4 tracking-tighter">{value}</div>
+      <div className="text-[10px] md:text-sm font-black text-[#e2a856] tracking-[0.3em] uppercase mb-4 md:mb-6">{label}</div>
+      <p className="text-base md:text-lg text-white/40 leading-tight font-medium">{detail}</p>
     </motion.div>
   );
 }

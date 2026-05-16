@@ -118,6 +118,12 @@ export default function ProfilScreen() {
               <span className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${kycConfig.color}`}>
                 {kycConfig.icon} {kycConfig.label}
               </span>
+              {/* Badge Sync Django */}
+              {agriculteur.djangoId && (
+                <span className="flex items-center gap-1 text-[11px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full">
+                  <LinkIcon size={11} /> Sync Backend ✓
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -206,17 +212,30 @@ export default function ProfilScreen() {
           </section>
         )}
 
-        {/* Identifiant blockchain */}
+        {/* Identifiants système */}
         <section>
-          <h2 className="text-xs font-bold text-tracao-choco-pale uppercase tracking-widest mb-2 px-1">Identifiant blockchain</h2>
-          <div className="bg-tracao-cream-light border border-tracao-border-light rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <LinkIcon size={14} className="text-tracao-cacao shrink-0" />
-              <span className="text-xs font-bold text-tracao-choco uppercase tracking-wide">ID Tracao</span>
+          <h2 className="text-xs font-bold text-tracao-choco-pale uppercase tracking-widest mb-2 px-1">Identifiants système</h2>
+          <div className="bg-tracao-cream-light border border-tracao-border-light rounded-2xl overflow-hidden divide-y divide-tracao-border-light">
+            <div className="p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <ShieldCheckIcon size={14} className="text-tracao-cacao shrink-0" />
+                <span className="text-[10px] font-bold text-tracao-choco-pale uppercase tracking-wide">ID Session Mobile</span>
+              </div>
+              <p className="text-xs font-mono text-tracao-choco break-all bg-tracao-cream-mid rounded-lg px-3 py-2 mt-1">
+                {agriculteur.id}
+              </p>
             </div>
-            <p className="text-xs font-mono text-tracao-choco-light break-all bg-tracao-cream-mid rounded-lg px-3 py-2 mt-1">
-              {agriculteur.id}
-            </p>
+            {agriculteur.djangoId && (
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <LinkIcon size={14} className="text-blue-600 shrink-0" />
+                  <span className="text-[10px] font-bold text-tracao-choco-pale uppercase tracking-wide">ID Backend (Django)</span>
+                </div>
+                <p className="text-xs font-mono text-tracao-choco break-all bg-blue-50/50 rounded-lg px-3 py-2 mt-1 border border-blue-100">
+                  {agriculteur.djangoId}
+                </p>
+              </div>
+            )}
           </div>
         </section>
 

@@ -214,5 +214,21 @@ class MagicLink(models.Model):
         from django.utils import timezone
         return not self.is_used and timezone.now() <= self.expires_at
 
+class Notification(models.Model):
+    NOTIFICATION_TYPES = [
+        ('LOT_CREATED', 'Nouveau Lot'),
+        ('LOT_VALIDATED', 'Lot Validé'),
+        ('LOT_REJECTED', 'Lot Rejeté'),
+        ('KYC_APPROVED', 'KYC Approuvé'),
+        ('KYC_REJECTED', 'KYC Rejeté'),
+    ]
+    
+    user = models.ForeignKey(TracaoUser, on_delete=models.CASCADE, related_name='notifications')
+    type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES)
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(null=True, blank=True) # To store lot_id, etc.
+    
     def __str__(self):
-        return f"Magic Link for {self.user.email}"
+        return f"Notif for {self.user.email} - {self.type}"

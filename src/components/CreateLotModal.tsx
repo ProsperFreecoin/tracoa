@@ -2,17 +2,15 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useAgriculteur } from "../../context/AgriculteurContext";
-import { useLots } from "../../context/LotsContext";
-import { TypeProduit } from "../../types";
-import { Button } from "../../components/ui/Button";
+import { useAgriculteur } from "../context/AgriculteurContext";
+import { useLots } from "../context/LotsContext";
+import { TypeProduit } from "../types";
+import { Button } from "./ui/Button";
 import { ArrowLeftIcon, MapPinIcon, CameraIcon, XIcon, UploadCloudIcon, ImageIcon } from "lucide-react";
-import { uploadToCloudinary } from "../../lib/cloudinary";
-import { NotificationService } from "../../lib/notifications";
-import { db } from "../../lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { uploadToCloudinary } from "../lib/cloudinary";
+import { NotificationService } from "../lib/notifications";
 
-export default function NouveauLotScreen() {
+export function CreateLotModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { agriculteur } = useAgriculteur();
   const { ajouterLot } = useLots();
@@ -40,6 +38,11 @@ export default function NouveauLotScreen() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Farms state
+  const [farms, setFarms] = useState<any[]>([]);
+  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
+  const [isLoadingFarms, setIsLoadingFarms] = useState(false);
+
   // --- Shared image processor (file input + drag-drop + paste) ---
   const processImageFile = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -51,17 +54,19 @@ export default function NouveauLotScreen() {
     setPhotoPreview(URL.createObjectURL(file));
   }, []);
 
-  // --- Fetch Cooperatives when component mounts ---
+  // --- Fetch Cooperatives and Farms when component mounts ---
   useEffect(() => {
-    const fetchMagasins = async () => {
+    const fetchData = async () => {
       setIsLoadingMagasins(true);
+      setIsLoadingFarms(true);
       try {
-        const q = query(collection(db, "agriculteurs"), where("secteur", "==", "Magasin/Boutique"));
-        const snapshot = await getDocs(q);
-        const stores: any[] = [];
-        snapshot.forEach((doc) => {
-          stores.push({ id: doc.id, ...doc.data() });
-        });
+        const { getFarms } = await import("../lib/djangoApi");
+        const backendFarms = await getFarms();
+        setFarms(backendFarms);
+
+        const DJANGO_API_BASE = "https://tracoa.onrender.com/api";
+        const res = await fetch(`${DJANGO_API_BASE}/users/all_stores`);
+        const stores = res.ok ? await res.json() : [];
 
         if (stores.length === 0) {
           stores.push({
@@ -72,7 +77,7 @@ export default function NouveauLotScreen() {
         }
         setAvailableMagasins(stores);
       } catch (error) {
-        console.error("Erreur lors de la récupération des magasins", error);
+        console.error("Erreur lors de la récupération des données", error);
         setAvailableMagasins([{
           id: "default-store",
           nom: "Magasin Central Lomé",
@@ -80,9 +85,10 @@ export default function NouveauLotScreen() {
         }]);
       } finally {
         setIsLoadingMagasins(false);
+        setIsLoadingFarms(false);
       }
     };
-    fetchMagasins();
+    fetchData();
   }, []);
 
   // --- Paste anywhere on the page (Ctrl+V / Cmd+V) ---
@@ -131,7 +137,7 @@ export default function NouveauLotScreen() {
 
   const handleBack = () => {
     if (step > 1) setStep(step - 1);
-    else router.push("/");
+    else onClose();
   };
 
   const getLocation = () => {
@@ -217,6 +223,7 @@ export default function NouveauLotScreen() {
         dateRecolte: new Date(dateRecolte),
         notesQualite: notes,
         photoPath: photoUrl,
+        farmId: selectedFarmId ? parseInt(selectedFarmId) : undefined,
       });
 
       // Send local/push notification
@@ -234,7 +241,7 @@ export default function NouveauLotScreen() {
         );
       }
 
-      router.push(`/nouveau-lot/confirmation?id=${newLot.lotId}`);
+      onClose();
     } catch (e) {
       console.error(e);
       setIsSubmitting(false);
@@ -243,8 +250,9 @@ export default function NouveauLotScreen() {
   };
 
   return (
-    <div className="flex flex-col flex-1 bg-tracao-cream h-screen">
-      <div className="bg-tracao-cacao p-4 text-white flex items-center shadow-sm relative z-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm overflow-hidden p-4">
+      <div className="bg-tracao-cream w-full max-w-2xl h-[90vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden relative">
+        <div className="bg-tracao-cacao p-4 text-white flex items-center shadow-sm relative z-10">
         <button onClick={handleBack} className="p-2 -ml-2 rounded-full hover:bg-white/10 active:scale-95 transition-all">
           <ArrowLeftIcon size={24} />
         </button>
@@ -295,6 +303,23 @@ export default function NouveauLotScreen() {
             <p className="text-sm text-tracao-choco-light mb-6">Étape 2 sur 4</p>
             
             <div className="space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-tracao-choco-light mb-1.5 uppercase tracking-wide">Champ / Ferme d'origine</label>
+                <select 
+                  value={selectedFarmId || ""} 
+                  onChange={e => setSelectedFarmId(e.target.value)}
+                  className="w-full border border-tracao-border rounded-xl p-4 bg-white text-lg focus:outline-none focus:border-tracao-cacao focus:ring-1 focus:ring-tracao-cacao"
+                >
+                  <option value="">Sélectionnez une ferme (Optionnel)</option>
+                  {farms.map(farm => (
+                    <option key={farm.id} value={farm.id}>{farm.name} ({farm.area_hectares} ha)</option>
+                  ))}
+                </select>
+                {farms.length === 0 && !isLoadingFarms && (
+                  <p className="text-[10px] text-tracao-choco-pale mt-1">Aucune ferme enregistrée sur votre compte Django.</p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-tracao-choco-light mb-1.5 uppercase tracking-wide">Poids du lot (en kg)</label>
                 <div className="relative">
@@ -584,6 +609,7 @@ export default function NouveauLotScreen() {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

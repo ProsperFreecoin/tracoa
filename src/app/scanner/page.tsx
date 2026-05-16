@@ -10,7 +10,14 @@ export default function ScannerScreen() {
   const router = useRouter();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [manualId, setManualId] = useState("");
   const scannerRef = useRef<Html5Qrcode | null>(null);
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualId.trim()) return;
+    handleScanSuccess(manualId.trim());
+  };
 
   useEffect(() => {
     // Component unmount logic to stop the scanner
@@ -59,20 +66,30 @@ export default function ScannerScreen() {
 
   const handleScanSuccess = (decodedText: string) => {
     try {
-      // Assuming the QR code contains a URL like: https://app.tracao.com/lot/LOT-1234
+      // Assuming the QR code contains a URL
       const url = new URL(decodedText);
       const pathname = url.pathname;
+      const searchParams = url.searchParams;
       
-      // Check if it's a valid Tracao URL
+      // Check if it's a verify link
+      if (pathname.startsWith('/verify') && searchParams.has('batch')) {
+        router.push(`/verify?batch=${searchParams.get('batch')}`);
+        return;
+      }
+
+      // Check if it's a legacy LOT URL
       if (pathname.startsWith('/lot/')) {
         const lotId = pathname.split('/').pop();
         router.push(`/lot?id=${lotId}`);
-      } else {
-        setError("Ce QR code n'est pas un code Tracao valide.");
+        return;
       }
     } catch (e) {
-      // If it's just raw text (e.g. LOT-1234)
-      if (decodedText.startsWith('LOT-')) {
+      // If it's just raw text
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      
+      if (uuidRegex.test(decodedText)) {
+        router.push(`/verify?batch=${decodedText}`);
+      } else if (decodedText.startsWith('LOT-')) {
         router.push(`/lot?id=${decodedText}`);
       } else {
         setError("Format de QR code non reconnu.");
@@ -107,6 +124,22 @@ export default function ScannerScreen() {
             <Button fullWidth onClick={startScanner}>
               Activer la caméra
             </Button>
+            
+            <div className="mt-8 pt-6 border-t border-white/10">
+              <p className="text-xs text-white/50 mb-3 uppercase tracking-wider font-bold">Ou entrez l'ID manuellement</p>
+              <form onSubmit={handleManualSubmit} className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={manualId}
+                  onChange={e => setManualId(e.target.value)}
+                  placeholder="Ex: LOT-1234 ou UUID" 
+                  className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:outline-none focus:border-tracao-gold text-sm"
+                />
+                <button type="submit" className="bg-tracao-gold text-tracao-choco px-4 py-3 rounded-xl font-bold hover:bg-white transition-colors">
+                  OK
+                </button>
+              </form>
+            </div>
           </div>
         ) : (
           <div className="w-full h-full relative flex items-center justify-center">
@@ -137,6 +170,21 @@ export default function ScannerScreen() {
                 >
                   Réessayer
                 </button>
+                <div className="w-full mt-4 pt-4 border-t border-tracao-error/20">
+                  <p className="text-xs text-tracao-error/70 mb-2 font-bold uppercase">Saisie manuelle</p>
+                  <form onSubmit={handleManualSubmit} className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={manualId}
+                      onChange={e => setManualId(e.target.value)}
+                      placeholder="ID du lot..." 
+                      className="flex-1 bg-white border border-tracao-error/30 rounded-lg px-3 py-2 text-sm text-tracao-choco focus:outline-none focus:border-tracao-error"
+                    />
+                    <button type="submit" className="bg-tracao-choco text-white px-3 py-2 rounded-lg font-bold text-sm">
+                      OK
+                    </button>
+                  </form>
+                </div>
               </div>
             )}
           </div>

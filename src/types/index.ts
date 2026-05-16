@@ -1,6 +1,6 @@
 export type TypeProduit = 'cacao' | 'cafe';
 
-export type LotStatut = 'en_attente_coop' | 'valide' | 'rejete' | 'enregistre' | 'transfere' | 'enTransformation' | 'exporte' | 'eudrConforme';
+export type LotStatut = 'enregistre' | 'en_attente_magasinier' | 'transfere' | 'enTransformation' | 'exporte' | 'eudrConforme' | 'rejete';
 
 export type KycStatut = 'non_soumis' | 'en_attente' | 'verifie' | 'rejete';
 
@@ -62,6 +62,7 @@ export interface Lot {
   syncBlockchain: boolean;
   agriculteurNom?: string;
   motifRejet?: string;
+  farmId?: number;
 }
 
 export interface Cooperative {
@@ -105,16 +106,15 @@ export const getTypeProduitEmoji = (type: TypeProduit): string => {
   return type === 'cacao' ? '🍫' : '☕';
 };
 
-export const getLotStatutLabel = (statut: LotStatut): string => {
+export const getStatutLabel = (statut: LotStatut) => {
   switch (statut) {
-    case 'en_attente_coop': return 'En attente Coopérative';
-    case 'valide': return 'Validé (Blockchain)';
-    case 'rejete': return 'Rejeté';
-    case 'enregistre': return 'Enregistré';
-    case 'transfere': return 'Transféré';
-    case 'enTransformation': return 'En transformation';
+    case 'enregistre': return 'Enregistré à la ferme';
+    case 'en_attente_magasinier': return 'En attente Magasinier';
+    case 'transfere': return 'Reçu au Magasin';
+    case 'enTransformation': return 'En Transformation';
     case 'exporte': return 'Exporté';
-    case 'eudrConforme': return 'EUDR ✓';
-    default: return statut;
+    case 'eudrConforme': return 'Conforme EUDR';
+    case 'rejete': return 'Lot Rejeté';
+    default: return 'Inconnu';
   }
 };

@@ -3,9 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from "next/navigation";
 import { Agriculteur } from '../types';
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { db, auth } from "../lib/firebase";
+import { getCurrentUser } from "../lib/djangoApi";
 
 interface AgriculteurContextType {
   agriculteur: Agriculteur | null;
@@ -24,39 +22,58 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Charger depuis localStorage d'abord pour plus de réactivité
-    const savedAgri = localStorage.getItem('tracao_user');
-    if (savedAgri) {
-      setAgriculteur(JSON.parse(savedAgri));
-    }
+    const initializeAuth = async () => {
+      // 1. Charger depuis localStorage pour la réactivité
+      const savedAgri = localStorage.getItem('tracao_user');
+      if (savedAgri) {
+        setAgriculteur(JSON.parse(savedAgri));
+      }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+      // 2. Vérifier la validité du token avec Django
+      const token = localStorage.getItem('tracao_token');
+      if (token) {
         try {
-          const docSnap = await getDoc(doc(db, "agriculteurs", user.uid));
-          if (docSnap.exists()) {
-            const data = docSnap.data() as Agriculteur;
-            setAgriculteur(data);
-            localStorage.setItem('tracao_user', JSON.stringify(data));
+          const user = await getCurrentUser();
+          if (user) {
+            // Mapper les données Django vers le type Agriculteur frontend
+            const mappedAgri: Agriculteur = {
+              id: user.id.toString(),
+              djangoId: user.id,
+              nom: user.last_name || user.org_name || "Nom",
+              prenom: user.first_name || "",
+              email: user.email,
+              telephone: user.phone_number,
+              region: user.city,
+              certifie: user.is_verified,
+              secteur: user.is_farmer ? "Agriculteur" : 
+                       user.is_store ? "Magasin/Boutique" : 
+                       user.is_transformer ? "Entreprise de Transformation" : "Institution"
+            };
+            setAgriculteur(mappedAgri);
+            localStorage.setItem('tracao_user', JSON.stringify(mappedAgri));
+          } else {
+            // Token invalide
+            setAgriculteur(null);
+            localStorage.removeItem('tracao_user');
+            localStorage.removeItem('tracao_token');
           }
         } catch (e) {
-          console.error("Error fetching profile:", e);
+          console.error("Error fetching profile from Django:", e);
         }
-      } else if (!localStorage.getItem('tracao_token')) {
-        // Si pas de Firebase ET pas de token Django, on déconnecte
+      } else {
         setAgriculteur(null);
         localStorage.removeItem('tracao_user');
       }
       setIsLoaded(true);
-    });
+    };
 
-    return () => unsubscribe();
+    initializeAuth();
   }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
     
-    const isPublicPath = pathname === '/login' || pathname === '/register' || pathname === '/' || pathname?.startsWith('/magic-link');
+    const isPublicPath = pathname === '/login' || pathname === '/register' || pathname === '/' || pathname?.startsWith('/magic-link') || pathname === '/verify';
     
     if (!agriculteur && !isPublicPath) {
       router.replace('/');
@@ -69,17 +86,9 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
     setAgriculteur(agri);
     localStorage.setItem('tracao_user', JSON.stringify(agri));
     if (token) localStorage.setItem('tracao_token', token);
-    
-    try {
-      // On continue de synchroniser avec Firebase pour la compatibilité
-      await setDoc(doc(db, "agriculteurs", agri.id), agri);
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde dans Firebase:", error);
-    }
   };
 
   const deconnecter = async () => {
-    await signOut(auth);
     setAgriculteur(null);
     localStorage.removeItem('tracao_user');
     localStorage.removeItem('tracao_token');
@@ -93,11 +102,8 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
     setAgriculteur(updatedAgri);
     localStorage.setItem('tracao_user', JSON.stringify(updatedAgri));
     
-    try {
-      await setDoc(doc(db, "agriculteurs", agriculteur.id), updatedAgri, { merge: true });
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour du profil:", error);
-    }
+    // Note: In a real app, you would also call a Django API here to save the profile
+    console.log("Profil mis à jour localement. Synchro Django à implémenter si nécessaire.");
   };
 
   if (!isLoaded) {

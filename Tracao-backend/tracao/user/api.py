@@ -5,9 +5,9 @@ from ninja.files import UploadedFile
 from user.schemas import (
     FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister, CreateTransporter,
     KYCDocumentSchema, FarmerList, BuyerList, CompanyList, InstitutionList, StoreList, TransporterList,
-    VerifyOTPSchema, SetPasswordMagicLinkSchema
+    VerifyOTPSchema, SetPasswordMagicLinkSchema, UserSchema, NotificationSchema
 )
-from user.models import TracaoUser, KYCDocument, OTP, MagicLink
+from user.models import TracaoUser, KYCDocument, OTP, MagicLink, Notification
 from user.utils import send_otp_email, send_magic_link_email
 from django.shortcuts import get_object_or_404
 from typing import Optional
@@ -17,6 +17,21 @@ User = TracaoUser
 
 @api_controller('/users',auth=None)
 class UserController:
+    @route.get("/me", auth=IsAuthenticated(), response=UserSchema)
+    def me(self, request):
+        return request.user
+
+    @route.get("/notifications", auth=IsAuthenticated(), response=list[NotificationSchema])
+    def get_notifications(self, request):
+        return Notification.objects.filter(user=request.user).order_by('-created_at')
+
+    @route.post("/notifications/{notif_id}/read", auth=IsAuthenticated())
+    def mark_notif_read(self, request, notif_id: int):
+        notif = get_object_or_404(Notification, id=notif_id, user=request.user)
+        notif.is_read = True
+        notif.save()
+        return {"success": True}
+
     @route.post("/farmer_signup",response = FarmerList)
     def register_farmer(self,user:FarmerBuyerRegister):
         user_data = user.model_dump()

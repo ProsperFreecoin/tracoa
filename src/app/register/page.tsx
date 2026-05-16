@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAgriculteur } from "../../context/AgriculteurContext";
 import { uploadImage, validateImageFile } from "../../lib/cloudinary";
 import { registerUser, verifyOTP, uploadKYC } from "../../lib/djangoApi";
@@ -12,6 +13,14 @@ import {
   ArrowLeftIcon, UploadCloudIcon, EyeIcon, EyeOffIcon, KeyIcon,
   BuildingIcon, LandmarkIcon, StoreIcon, BriefcaseIcon
 } from "lucide-react";
+
+const DotsLoader = () => (
+  <div className="flex justify-center items-center gap-1.5 h-6">
+    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+  </div>
+);
 
 const TOTAL_STEPS = 5;
 
@@ -102,8 +111,9 @@ function RegisterContent() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
-
   // Étape 5 — KYC
+  const [docType, setDocType] = useState("Carte d'identité");
+  const [docNumber, setDocNumber] = useState("");
   const [kycRectoFile, setKycRectoFile] = useState<File | null>(null);
   const [kycRectoPreview, setKycRectoPreview] = useState<string | null>(null);
   const [kycVersoFile, setKycVersoFile] = useState<File | null>(null);
@@ -320,7 +330,16 @@ function RegisterContent() {
       </div>
 
       {/* Carte de contenu */}
-      <div className="bg-tracao-cream-light border border-tracao-border-light rounded-2xl shadow-sm p-6 overflow-y-auto max-h-[70vh]">
+      <div className="relative flex-1 overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={step}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="bg-tracao-cream-light border border-tracao-border-light rounded-2xl shadow-sm p-6 h-full overflow-y-auto"
+          >
         {error && (
           <div className="flex items-center gap-2 bg-tracao-error-light text-tracao-error text-sm p-3 rounded-xl mb-4">
             <AlertCircleIcon size={16} className="shrink-0" />
@@ -481,7 +500,7 @@ function RegisterContent() {
             <div className="flex gap-3 mt-2">
               <button onClick={goBack} className={btnSecondary}><ArrowLeftIcon size={16} /> Retour</button>
               <button onClick={handleSignup} disabled={isLoading} className={`${btnPrimary} flex-[2]`}>
-                {isLoading ? "Inscription..." : "Créer mon compte →"}
+                {isLoading ? <DotsLoader /> : "Créer mon compte →"}
               </button>
             </div>
           </div>
@@ -509,7 +528,7 @@ function RegisterContent() {
 
             <button onClick={handleVerifyOTP} disabled={isLoading || otpCode.length < 6}
               className={`${btnPrimary} w-full mt-4`}>
-              {isLoading ? "Vérification..." : "Vérifier le code"}
+              {isLoading ? <DotsLoader /> : "Vérifier le code"}
             </button>
             
             <button className="text-xs text-tracao-cacao font-bold underline mt-2">
@@ -552,7 +571,20 @@ function RegisterContent() {
             <SectionTitle icon={<IdCardIcon size={16} />} title="Documents d'identité" />
             <p className="text-[10px] text-tracao-choco-pale uppercase font-bold tracking-widest">Requis pour la certification</p>
 
-            <div className="grid grid-cols-2 gap-3">
+            <Field label="Type de document *">
+              <select value={docType} onChange={(e) => setDocType(e.target.value)}
+                className={inputCls}>
+                <option value="Passeport">Passeport</option>
+                <option value="Carte d'identité">Carte d'identité</option>
+              </select>
+            </Field>
+
+            <Field label={`Numéro de ${docType.toLowerCase()} *`}>
+              <input type="text" value={docNumber} onChange={(e) => setDocNumber(e.target.value)}
+                className={inputCls} placeholder={`Ex: ${docType === 'Passeport' ? '12PT34567' : '123456789'}`} />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3 mt-2">
               <KycZone label="Recto" preview={kycRectoPreview} onClick={() => kycRectoRef.current?.click()} />
               <KycZone label="Verso" preview={kycVersoPreview} onClick={() => kycVersoRef.current?.click()} />
             </div>
@@ -570,7 +602,7 @@ function RegisterContent() {
             </label>
 
             <button onClick={handleSubmitKYC} disabled={isLoading || !kycConfirmed} className={`${btnPrimary} w-full mt-4`}>
-              {isLoading ? "Envoi en cours..." : "Finaliser l'inscription"}
+              {isLoading ? <DotsLoader /> : "Finaliser l'inscription"}
             </button>
           </div>
         )}
@@ -582,23 +614,58 @@ function RegisterContent() {
             <Link href="/login" className="text-tracao-cacao font-bold hover:underline">Se connecter</Link>
           </p>
         )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Drawer Sélection Secteur */}
-      {isDrawerOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setIsDrawerOpen(false)} />
-          <div className="relative bg-white rounded-t-3xl p-6 flex flex-col gap-3 animate-in slide-in-from-bottom duration-300">
-            <h3 className="font-bold text-tracao-choco mb-2">Choisissez votre secteur</h3>
-            {secteurs.map((s) => (
-              <button key={s} onClick={() => { setSecteur(s); setIsDrawerOpen(false); }}
-                className={`p-4 rounded-xl text-left font-bold text-sm ${secteur === s ? "bg-tracao-cacao text-white" : "bg-tracao-cream-mid text-tracao-choco"}`}>
-                {s}
+      <AnimatePresence>
+        {isDrawerOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm" 
+              onClick={() => setIsDrawerOpen(false)} 
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative bg-white rounded-t-[3rem] p-8 flex flex-col gap-3 shadow-2xl border-t border-white/20"
+            >
+              <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto mb-6" />
+              <h3 className="font-black text-2xl text-tracao-choco mb-4 text-center">Votre secteur</h3>
+              <div className="grid gap-3">
+                {secteurs.map((s) => (
+                  <motion.button 
+                    key={s} 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => { setSecteur(s); setIsDrawerOpen(false); }}
+                    className={`p-5 rounded-2xl text-left font-bold text-base transition-all flex items-center justify-between group ${
+                      secteur === s 
+                        ? "bg-tracao-cacao text-white shadow-lg shadow-tracao-cacao/20" 
+                        : "bg-tracao-cream-mid/50 text-tracao-choco hover:bg-tracao-cream-mid"
+                    }`}
+                  >
+                    {s}
+                    {secteur === s && <CheckCircle2Icon size={20} />}
+                  </motion.button>
+                ))}
+              </div>
+              <button 
+                onClick={() => setIsDrawerOpen(false)}
+                className="mt-4 p-4 text-tracao-choco-pale font-bold text-sm uppercase tracking-widest"
+              >
+                Annuler
               </button>
-            ))}
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

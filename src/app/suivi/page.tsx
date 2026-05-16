@@ -1,7 +1,7 @@
 "use client";
 
 import { useLots } from "../../context/LotsContext";
-import { getTypeProduitEmoji, getTypeProduitLabel, getLotStatutLabel } from "../../types";
+import { getTypeProduitEmoji, getTypeProduitLabel, getStatutLabel } from "../../types";
 import { TracaoBadge } from "../../components/ui/TracaoBadge";
 import { PackageIcon, ArrowRightIcon, HistoryIcon, BarChart3Icon, FilterIcon } from "lucide-react";
 import Link from "next/link";
@@ -92,7 +92,7 @@ export default function SuiviLotsScreen() {
                         </p>
                       </div>
                     </div>
-                    <TracaoBadge label={getLotStatutLabel(lot.statut)} type={badgeType} />
+                    <TracaoBadge label={getStatutLabel(lot.statut)} type={badgeType} />
                   </div>
 
                   {/* Progress Line */}

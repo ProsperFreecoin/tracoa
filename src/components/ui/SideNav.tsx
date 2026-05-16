@@ -19,9 +19,9 @@ const coopNavCategories = [
   {
     title: "GESTION",
     items: [
-      { href: "/cooperative", icon: BuildingIcon, label: "Lots reçus" },
-      { href: "/cooperative/transferts", icon: ArrowRightLeftIcon, label: "Transferts" },
-      { href: "/cooperative/membres", icon: UsersIcon, label: "Membres" },
+      { href: "/cooperative", icon: BuildingIcon, label: "Réception Lots" },
+      { href: "/cooperative/transferts", icon: ArrowRightLeftIcon, label: "Expéditions" },
+      { href: "/cooperative/membres", icon: UsersIcon, label: "Producteurs" },
     ]
   },
   {
@@ -45,7 +45,9 @@ export function SideNav() {
 
   if (!agriculteur) return null;
 
-  const isCoop = agriculteur.secteur === "Coopérative";
+  const isMagasinier = agriculteur.secteur === "Magasinier";
+  const isCoopLegacy = agriculteur.secteur === "Coopérative";
+  const isCoop = isMagasinier || isCoopLegacy;
 
   return (
     <aside className={`hidden lg:flex flex-col w-64 min-h-screen shrink-0 sticky top-0 ${

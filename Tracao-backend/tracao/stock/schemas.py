@@ -7,6 +7,15 @@ class StockProducerSchema(ModelSchema):
         model = StockProducer
         fields = ['id', 'producer','cooperative','weight','date','product_type','species','origin','surface_size','production_size', 'farm']
 
+    batch_number: Optional[str] = None
+
+    @staticmethod
+    def resolve_batch_number(obj):
+        try:
+            return str(obj.batch.batch_number)
+        except:
+            return None
+
 class StockOriginSchema(ModelSchema):
     class Meta:
         model = StockOrigin

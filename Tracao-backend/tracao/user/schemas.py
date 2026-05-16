@@ -1,6 +1,6 @@
 import pydantic
 from ninja import ModelSchema,Schema
-from user.models import TracaoUser, KYCDocument
+from user.models import TracaoUser, KYCDocument, Notification
 from pydantic import Field
 
 class VerifyOTPSchema(Schema):
@@ -118,3 +118,19 @@ class KYCDocumentSchema(ModelSchema):
     class Meta:
         model = KYCDocument
         fields = ['id', 'status', 'submitted_at', 'reviewed_at', 'rejection_reason']
+
+class UserSchema(ModelSchema):
+    class Meta:
+        model = TracaoUser
+        fields = [
+            'id', 'email', 'first_name', 'last_name', 'phone_number', 
+            'is_farmer', 'is_buyer', 'is_transformer', 'is_private_buyer', 
+            'is_store', 'is_transporter', 'is_verified', 'city', 'country',
+            'org_name', 'person_to_call', 'ptc_number', 'record_number',
+            'tax_number', 'legal_number', 'website', 'store_name', 'store_address'
+        ]
+
+class NotificationSchema(ModelSchema):
+    class Meta:
+        model = Notification
+        fields = ['id', 'type', 'message', 'is_read', 'created_at', 'metadata']

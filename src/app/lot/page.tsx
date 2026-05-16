@@ -3,9 +3,8 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLots } from "../../context/LotsContext";
-import { Lot, getTypeProduitLabel, getTypeProduitEmoji, getLotStatutLabel } from "../../types";
-import { TracaoBadge } from "../../components/ui/TracaoBadge";
-import { ArrowLeftIcon, CopyIcon, MapPinIcon, CheckCircle2Icon, QrCodeIcon } from "lucide-react";
+import { Lot, getTypeProduitLabel, getStatutLabel } from "../../types";
+import { ShieldCheckIcon, MaximizeIcon, Share2Icon, DownloadIcon, CheckCircle2Icon } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
 function LotDetailContent() {
@@ -23,144 +22,136 @@ function LotDetailContent() {
     }
   }, [id, trouverParId]);
 
-  if (!lot) return <div className="p-6 text-tracao-choco">Chargement du lot {id}...</div>;
+  if (!lot) return <div className="p-6 text-tracao-choco font-bold">Chargement du lot...</div>;
 
   const dateStr = new Date(lot.dateEnregistrement).toLocaleDateString("fr-FR", {
-    day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
+    day: "numeric", month: "long", year: "numeric"
   });
 
-  const copyHash = () => {
-    if (lot.blockchainTxHash) {
-      navigator.clipboard.writeText(lot.blockchainTxHash);
-      alert("Hash copié !");
-    }
-  };
-
-  let badgeType: 'success' | 'warning' | 'error' | 'info' | 'neutral' = 'neutral';
-  if (lot.statut === 'eudrConforme') badgeType = 'success';
-  if (lot.statut === 'enregistre') badgeType = 'warning';
-  if (lot.statut === 'transfere' || lot.statut === 'enTransformation') badgeType = 'info';
-
   const timelineSteps = [
-    { label: "Enregistré à la ferme", done: true, role: "Ferme" },
-    { label: "Transféré à la coopérative", done: ['transfere', 'enTransformation', 'exporte', 'eudrConforme'].includes(lot.statut), role: "Coopérative" },
-    { label: "Transformé / Conditionné", done: ['enTransformation', 'exporte', 'eudrConforme'].includes(lot.statut), role: "Transformateur" },
-    { label: "Exporté", done: ['exporte', 'eudrConforme'].includes(lot.statut), role: "Exportateur" }
+    { label: "Ferme", done: true },
+    { label: "Coopérative", done: ['transfere', 'enTransformation', 'exporte', 'eudrConforme'].includes(lot.statut) },
+    { label: "Transformation", done: ['enTransformation', 'exporte', 'eudrConforme'].includes(lot.statut) },
+    { label: "Exportation", done: ['exporte', 'eudrConforme'].includes(lot.statut) }
   ];
 
+  // Helper for generating dummy libellé and season based on current year if needed
+  const anneeCourante = new Date().getFullYear();
+  const libelle = lot.agriculteurNom ? `Lot de ${lot.agriculteurNom.split(' ')[0]}` : "Lot Standard";
+  const parcelle = lot.farmId ? `Ferme #${lot.farmId}` : "Parcelle Centrale";
+  const saison = `${anneeCourante} - ${anneeCourante + 1}`;
+
   return (
-    <div className="flex flex-col flex-1 bg-tracao-cream h-screen overflow-y-auto pb-20">
-      <div className="bg-tracao-cacao p-4 text-white flex items-center shadow-sm relative z-10">
-        <button onClick={() => router.back()} className="p-2 -ml-2 rounded-full hover:bg-white/10 active:scale-95 transition-all">
-          <ArrowLeftIcon size={24} />
-        </button>
-        <h1 className="text-lg font-bold ml-2">Détails du Lot</h1>
-      </div>
-
-      <div className="p-5 flex flex-col gap-5">
-        {/* Photo du lot (si présente) */}
-        {lot.photoPath && (
-          <div className="rounded-2xl overflow-hidden border border-tracao-border shadow-sm bg-tracao-choco">
-            <img 
-              src={lot.photoPath} 
-              alt={`Lot ${lot.lotId}`} 
-              className="w-full h-32 object-cover"
-            />
-          </div>
-        )}
-
-        {/* En-tête */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-tracao-border">
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-tracao-cream-light border border-tracao-border flex items-center justify-center text-2xl">
-                {getTypeProduitEmoji(lot.typeProduit)}
-              </div>
-              <div>
-                <h2 className="text-xl font-black text-tracao-choco">{lot.lotId}</h2>
-                <p className="text-xs text-tracao-choco-pale">{getTypeProduitLabel(lot.typeProduit)}</p>
-              </div>
-            </div>
-            <TracaoBadge label={getLotStatutLabel(lot.statut)} type={badgeType} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mt-6">
-            <div>
-              <p className="text-[10px] uppercase font-bold text-tracao-choco-light mb-0.5">Poids</p>
-              <p className="text-lg font-bold text-tracao-cacao">{lot.poidsKg} kg</p>
-            </div>
-            <div>
-              <p className="text-[10px] uppercase font-bold text-tracao-choco-light mb-0.5">Date</p>
-              <p className="text-sm font-bold text-tracao-choco">{dateStr}</p>
-            </div>
-          </div>
+    <div className="flex flex-col flex-1 bg-[#8C8075]/30 h-screen overflow-y-auto p-4 lg:p-10 flex items-center justify-center">
+      
+      {/* Modal Card */}
+      <div className="bg-white w-full max-w-2xl rounded-3xl p-6 lg:p-8 shadow-2xl">
+        
+        {/* Modal Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-[#4A3018] font-bold text-lg">Détails d'un lot</h1>
+          <button className="text-[#4A3018]/50 hover:text-[#4A3018] transition-colors">
+            <MaximizeIcon size={20} />
+          </button>
         </div>
 
-        {/* GPS */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-tracao-border flex items-start gap-4">
-          <div className="w-10 h-10 rounded-full bg-tracao-cream-mid flex items-center justify-center text-tracao-cacao shrink-0">
-            <MapPinIcon size={20} />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-tracao-choco mb-1">Localisation de récolte</h3>
-            <p className="text-xs font-mono text-tracao-choco-light">{lot.latitude.toFixed(6)}° N, {lot.longitude.toFixed(6)}° E</p>
-          </div>
-        </div>
-
-        {/* QR Code */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-tracao-border flex flex-col items-center justify-center">
-          <div className="flex items-center gap-2 mb-4 w-full">
-            <QrCodeIcon size={18} className="text-tracao-cacao" />
-            <h3 className="text-sm font-bold text-tracao-choco">Code QR de Traçabilité</h3>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-tracao-border-light shadow-sm inline-block">
+        {/* Top Info Section (Grey Card) */}
+        <div className="bg-[#F5F5F5] rounded-2xl p-4 lg:p-6 flex flex-col md:flex-row gap-4 lg:gap-6 mb-6 relative">
+          {/* QR Code */}
+          <div className="bg-white p-2 rounded-xl shrink-0">
             <QRCodeSVG 
-              value={`${window.location.origin}/lot/${lot.lotId}`} 
-              size={180} 
+              value={`${window.location.origin}/verify?batch=${lot.lotId}`} 
+              size={100} 
               level="H"
-              fgColor="#3D2000" // tracao-choco
+              fgColor="#4A3018"
               bgColor="#ffffff"
             />
           </div>
-          <p className="text-[10px] text-tracao-choco-pale text-center mt-4">
-            Scannez ce code pour vérifier l'authenticité et l'origine de ce lot.
-          </p>
-        </div>
-
-        {/* Blockchain */}
-        <div className="bg-tracao-cream-mid rounded-2xl p-5 border border-tracao-border">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="text-sm font-bold text-tracao-choco flex items-center gap-2">
-              Blockchain Status 
-              {(lot.syncBlockchain && !!lot.blockchainTxHash) && <CheckCircle2Icon size={16} className="text-tracao-forest" />}
-            </h3>
-            {lot.blockchainTxHash && (
-              <button onClick={copyHash} className="text-tracao-cacao"><CopyIcon size={16} /></button>
-            )}
-          </div>
-          <p className="text-xs font-mono text-tracao-choco break-all bg-white/50 p-3 rounded-lg border border-tracao-border-light">
-            {lot.blockchainTxHash || "En attente de synchronisation..."}
-          </p>
-        </div>
-
-        {/* Timeline */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-tracao-border">
-          <h3 className="text-sm font-bold text-tracao-choco mb-5">Parcours du lot</h3>
           
-          <div className="relative pl-3">
-            {/* Ligne verticale */}
-            <div className="absolute left-[17px] top-2 bottom-6 w-0.5 bg-tracao-border-light" />
+          {/* Middle Info */}
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="inline-flex items-center gap-1.5 bg-[#E8E8E8] text-[#4A3018] px-3 py-1 rounded-full text-xs font-bold w-max mb-3">
+              <ShieldCheckIcon size={14} className="text-[#4A3018]" />
+              {getStatutLabel(lot.statut)}
+            </div>
+            <p className="text-[#4A3018] font-bold text-sm lg:text-base break-all mb-1">{lot.lotId}</p>
+            <p className="text-[10px] text-[#4A3018]/60 font-semibold uppercase">Généré le {dateStr}</p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="absolute top-4 right-4 md:static flex flex-row md:flex-col gap-2">
+            <button className="w-8 h-8 lg:w-10 lg:h-10 bg-[#E8E8E8] text-[#4A3018] rounded-lg flex items-center justify-center hover:bg-[#D8D8D8] transition-colors">
+              <Share2Icon size={16} />
+            </button>
+            <button className="w-8 h-8 lg:w-10 lg:h-10 bg-[#E8E8E8] text-[#4A3018] rounded-lg flex items-center justify-center hover:bg-[#D8D8D8] transition-colors">
+              <DownloadIcon size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Fields List */}
+        <div className="space-y-3 mb-8">
+          <div className="bg-[#F5F5F5] rounded-xl px-5 py-4 flex justify-between items-center text-[#4A3018]">
+            <span className="text-sm font-semibold opacity-70">Libellé :</span>
+            <span className="text-sm font-bold">{libelle}</span>
+          </div>
+          <div className="bg-[#F5F5F5] rounded-xl px-5 py-4 flex justify-between items-center text-[#4A3018]">
+            <span className="text-sm font-semibold opacity-70">Parcelle :</span>
+            <span className="text-sm font-bold">{parcelle}</span>
+          </div>
+          <div className="bg-[#F5F5F5] rounded-xl px-5 py-4 flex justify-between items-center text-[#4A3018]">
+            <span className="text-sm font-semibold opacity-70">Choix culture :</span>
+            <span className="text-sm font-bold">{getTypeProduitLabel(lot.typeProduit)}</span>
+          </div>
+          <div className="bg-[#F5F5F5] rounded-xl px-5 py-4 flex justify-between items-center text-[#4A3018]">
+            <span className="text-sm font-semibold opacity-70">Saison :</span>
+            <span className="text-sm font-bold">{saison}</span>
+          </div>
+          <div className="bg-[#F5F5F5] rounded-xl px-5 py-4 flex justify-between items-center text-[#4A3018]">
+            <span className="text-sm font-semibold opacity-70">Quantité estimé :</span>
+            <span className="text-sm font-bold">{lot.poidsKg} Kg</span>
+          </div>
+        </div>
+
+        {/* Horizontal Timeline */}
+        <div className="mb-8 px-2">
+          <h3 className="text-xs font-bold text-[#4A3018] uppercase mb-6 opacity-70">Trajet du lot</h3>
+          <div className="relative flex justify-between items-center">
+            {/* Background Line */}
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-[#E8E8E8] rounded-full z-0" />
             
-            {timelineSteps.map((step, index) => (
-              <div key={index} className="flex gap-4 mb-6 relative">
-                <div className={`w-3 h-3 rounded-full mt-1.5 shrink-0 z-10 ${step.done ? 'bg-tracao-forest' : 'bg-tracao-border'}`} />
-                <div>
-                  <p className={`text-sm font-bold ${step.done ? 'text-tracao-choco' : 'text-tracao-choco-pale'}`}>{step.label}</p>
-                  <p className="text-xs text-tracao-choco-light mt-0.5">{step.role}</p>
+            {/* Progress Line */}
+            <div 
+              className="absolute left-0 top-1/2 -translate-y-1/2 h-1 bg-[#4A3018] rounded-full z-0 transition-all duration-500" 
+              style={{ width: `${Math.max(0, (timelineSteps.filter(s => s.done).length - 1)) / (timelineSteps.length - 1) * 100}%` }}
+            />
+            
+            {/* Dots */}
+            {timelineSteps.map((step, idx) => (
+              <div key={idx} className="relative z-10 flex flex-col items-center">
+                <div className={`w-5 h-5 rounded-full border-4 border-white shadow-sm flex items-center justify-center transition-all duration-300 ${
+                  step.done ? 'bg-[#4A3018]' : 'bg-[#E8E8E8]'
+                }`}>
+                  {step.done && <CheckCircle2Icon size={10} className="text-white absolute" />}
                 </div>
+                <span className={`absolute top-8 text-[10px] font-bold text-center w-20 -ml-10 ${
+                  step.done ? 'text-[#4A3018]' : 'text-[#4A3018]/40'
+                }`}>
+                  {step.label}
+                </span>
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex justify-end mt-12">
+          <button 
+            onClick={() => router.back()}
+            className="bg-[#F5F5F5] text-[#4A3018] font-bold px-6 py-3 rounded-2xl hover:bg-[#E8E8E8] transition-colors"
+          >
+            Fermer
+          </button>
         </div>
 
       </div>
@@ -170,7 +161,7 @@ function LotDetailContent() {
 
 export default function DetailLotScreen() {
   return (
-    <Suspense fallback={<div className="p-6 text-tracao-choco">Chargement...</div>}>
+    <Suspense fallback={<div className="p-6 text-tracao-choco font-bold">Chargement...</div>}>
       <LotDetailContent />
     </Suspense>
   );

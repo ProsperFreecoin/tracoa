@@ -1,6 +1,6 @@
 import { Agriculteur, Lot } from "../types";
 
-const DJANGO_API_BASE = "https://tracoa.onrender.com/api";
+export const DJANGO_API_BASE = "https://tracoa.onrender.com/api";
 
 /**
  * Enregistre un utilisateur dans Django selon son rôle
@@ -131,36 +131,29 @@ export const loginUser = async (email: string, password: string): Promise<any> =
 };
 
 /**
- * Enregistre silencieusement un utilisateur Firebase dans Django (Agriculteur ou Coopérative)
- * @deprecated Utiliser registerUser pour les nouvelles inscriptions
+ * Récupère le token JWT depuis localStorage
  */
-export const syncUserToDjango = async (user: Agriculteur): Promise<number | null> => {
-  try {
-    const endpoint = user.secteur === "Coopérative" ? "/users/company_signup" : "/users/farmer_signup";
-    
-    const payload = {
-      email: user.email || `${user.id}@tracao.local`,
-      first_name: user.prenom,
-      last_name: user.nom,
-      phone_number: user.telephone || "",
-      password: "TracaoHackathon2026!",
-      org_name: user.secteur === "Coopérative" ? user.nom : "",
-      city: user.region || "Lome"
-    };
-
-    const res = await fetch(`${DJANGO_API_BASE}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    return data.id || null;
-  } catch (err) {
-    return null;
+const getAuthToken = () => {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("tracao_token");
   }
+  return null;
+};
+
+/**
+ * Helper pour les requêtes authentifiées vers Django
+ */
+const fetchWithAuth = async (endpoint: string, options: RequestInit = {}) => {
+  const token = getAuthToken();
+  const headers = {
+    ...(options.headers || {}),
+    ...(token ? { "Authorization": `Bearer ${token}` } : {})
+  };
+
+  return fetch(`${DJANGO_API_BASE}${endpoint}`, {
+    ...options,
+    headers
+  });
 };
 
 /**
@@ -179,12 +172,13 @@ export const pushLotToDjangoBlockchain = async (
       weight: lot.poidsKg,
       date: new Date(lot.dateRecolte).toISOString().split('T')[0],
       product_type: lot.typeProduit,
-      origin: "Firebase Sync",
+      origin: "Django Mobile",
       surface_size: 0,
-      production_size: lot.poidsKg
+      production_size: lot.poidsKg,
+      farm_id: lot.farmId
     };
 
-    const spRes = await fetch(`${DJANGO_API_BASE}/stock/stock_producer`, {
+    const spRes = await fetchWithAuth("/stock/stock_producer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(stockProducerPayload)
@@ -193,6 +187,7 @@ export const pushLotToDjangoBlockchain = async (
     if (!spRes.ok) throw new Error("Erreur création StockProducer");
     const spData = await spRes.json();
     const stockProducerId = spData.id;
+    const batchNumber = spData.batch_number;
 
     const stockOriginPayload = {
       cooperative: coopDjangoId,
@@ -200,7 +195,7 @@ export const pushLotToDjangoBlockchain = async (
       is_confirmed: true
     };
 
-    const soRes = await fetch(`${DJANGO_API_BASE}/stock/stock_origin`, {
+    const soRes = await fetchWithAuth("/stock/stock_origin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(stockOriginPayload)
@@ -208,10 +203,74 @@ export const pushLotToDjangoBlockchain = async (
 
     if (!soRes.ok) throw new Error("Erreur création StockOrigin");
 
-    return `0x${Date.now().toString(16)}a3f7b`; 
+    return batchNumber || `0x${Date.now().toString(16)}a3f7b`; 
   } catch (err) {
     console.error("Impossible de pousser le lot vers Django:", err);
     return null;
+  }
+};
+
+/**
+ * Récupère le profil de l'utilisateur connecté via Django
+ */
+export const getCurrentUser = async (): Promise<any> => {
+  try {
+    const res = await fetchWithAuth("/users/me");
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem("tracao_token");
+        localStorage.removeItem("tracao_user");
+      }
+      return null;
+    }
+
+    return await res.json();
+  } catch (err) {
+    console.error("ERREUR GET ME:", err);
+    return null;
+  }
+};
+
+/**
+ * Récupère les lots d'un producteur depuis Django
+ */
+export const getLotsForProducer = async (producerId: number): Promise<any[]> => {
+  try {
+    const res = await fetchWithAuth(`/stock/producer_stocks/${producerId}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("ERREUR FETCH PRODUCER STOCKS:", err);
+    return [];
+  }
+};
+
+/**
+ * Récupère les lots d'une coopérative depuis Django
+ */
+export const getLotsForCooperative = async (cooperativeId: number): Promise<any[]> => {
+  try {
+    const res = await fetchWithAuth(`/stock/cooperative_stocks/${cooperativeId}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("ERREUR FETCH COOP STOCKS:", err);
+    return [];
+  }
+};
+
+/**
+ * Récupère les fermes d'un producteur
+ */
+export const getFarms = async (): Promise<any[]> => {
+  try {
+    const res = await fetchWithAuth("/stock/farms");
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (err) {
+    console.error("ERREUR FETCH FARMS:", err);
+    return [];
   }
 };
 
