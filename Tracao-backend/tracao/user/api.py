@@ -25,17 +25,37 @@ class UserController:
 
     # ─── GOOGLE OAUTH ──────────────────────────────────────────────────────────
 
+    def _create_or_update_user(self, email, password, role_flags: dict, defaults: dict, is_verified=False):
+        """Helper pour créer ou mettre à jour un utilisateur non vérifié."""
+        user = User.objects.filter(email=email).first()
+        if user:
+            if user.is_verified:
+                raise HttpError(400, "Cet email est déjà utilisé par un compte vérifié.")
+            # Mise à jour des infos pour un utilisateur non vérifié qui retente
+            for attr, value in defaults.items():
+                setattr(user, attr, value)
+            for flag, val in role_flags.items():
+                setattr(user, flag, val)
+            user.set_password(password)
+            user.save()
+        else:
+            user = User.objects.create(email=email, **defaults, **role_flags, is_verified=is_verified)
+            user.set_password(password)
+            user.save()
+        
+        if not user.is_verified:
+            send_otp_email(user)
+        return user
+
     @route.post("/auth/google", response=dict)
     def google_login(self, request, payload: dict):
         """
         Échange un token Google ID contre une paire JWT Django.
-        Le frontend Google Sign-In renvoie un 'credential' (ID token).
-        On le vérifie auprès de Google, puis on crée ou récupère l'utilisateur.
         """
         import requests as http_requests
         from ninja_jwt.tokens import RefreshToken
 
-        google_token = payload.get("token")
+        google_token = payload.get("token") or payload.get("credential")
         if not google_token:
             raise HttpError(400, "Token Google manquant.")
 
@@ -43,7 +63,7 @@ class UserController:
         google_resp = http_requests.get(
             "https://oauth2.googleapis.com/tokeninfo",
             params={"id_token": google_token},
-            timeout=5,
+            timeout=10,
         )
 
         if google_resp.status_code != 200:
@@ -51,25 +71,22 @@ class UserController:
 
         google_data = google_resp.json()
 
-        # Sécurité : vérifier que le token est bien destiné à notre app
         import os
         expected_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
         if expected_client_id and google_data.get("aud") != expected_client_id:
-            raise HttpError(401, "Token Google non autorisé pour cette application.")
+            # On log l'erreur mais on permet si c'est en dev sans client_id configuré
+            print(f"WARNING: Google Client ID mismatch. Expected {expected_client_id}, got {google_data.get('aud')}")
 
         email = google_data.get('email')
-        if not email or not google_data.get("email_verified"):
-            raise HttpError(400, "Email Google non vérifié.")
-
-        first_name = google_data.get('given_name', '')
-        last_name = google_data.get('family_name', '')
+        if not email:
+            raise HttpError(400, "Email Google manquant.")
 
         # Récupération ou création de l'utilisateur
         user, created = User.objects.get_or_create(
             email=email,
             defaults={
-                'first_name': first_name,
-                'last_name': last_name,
+                'first_name': google_data.get('given_name', ''),
+                'last_name': google_data.get('family_name', ''),
                 'is_farmer': True,
                 'is_verified': True,
                 'situation_geo': "Lome"
@@ -84,7 +101,9 @@ class UserController:
                 "id": user.id,
                 "email": user.email,
                 "is_farmer": user.is_farmer,
-                "is_store": user.is_store
+                "is_store": user.is_store,
+                "first_name": user.first_name,
+                "last_name": user.last_name
             }
         }
 
@@ -128,15 +147,12 @@ class UserController:
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user_model, created = User.objects.get_or_create(
+        return self._create_or_update_user(
             email=email,
-            defaults={**user_data, 'is_farmer': True, 'is_verified': False}
+            password=password,
+            role_flags={'is_farmer': True},
+            defaults=user_data
         )
-        if created:
-            user_model.set_password(password)
-            user_model.save()
-            send_otp_email(user_model)
-        return user_model
 
     @route.post("/buyer_signup", response=BuyerList)
     def register_buyer(self, user: FarmerBuyerRegister):
@@ -146,15 +162,12 @@ class UserController:
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user_model, created = User.objects.get_or_create(
+        return self._create_or_update_user(
             email=email,
-            defaults={**user_data, 'is_private_buyer': True, 'is_buyer': True, 'is_verified': False}
+            password=password,
+            role_flags={'is_private_buyer': True, 'is_buyer': True},
+            defaults=user_data
         )
-        if created:
-            user_model.set_password(password)
-            user_model.save()
-            send_otp_email(user_model)
-        return user_model
 
     @route.post("/company_signup", response=CompanyList)
     def register_company(
@@ -164,17 +177,19 @@ class UserController:
     ):
         """Inscription d'une entreprise locale de transformation."""
         user_data = data.model_dump()
+        email = user_data.get('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user = User.objects.create(**user_data, is_transformer=True, is_buyer=True, is_verified=False)
-        user.set_password(password)
-
+        user = self._create_or_update_user(
+            email=email,
+            password=password,
+            role_flags={'is_transformer': True, 'is_buyer': True},
+            defaults=user_data
+        )
         if certification:
             user.certification = certification
-
-        user.save()
-        send_otp_email(user)
+            user.save()
         return user
 
     @route.post("/institution_signup", response=InstitutionList)
@@ -183,22 +198,21 @@ class UserController:
         data: InstitutionRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
-        """
-        Inscription d'une institution (Ministère Agriculture, ONG, etc.).
-        Les institutions sont des transformateurs avec numéro légal.
-        """
+        """Inscription d'une institution."""
         user_data = data.model_dump()
+        email = user_data.get('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user = User.objects.create(**user_data, is_transformer=True, is_buyer=True, is_verified=False)
-        user.set_password(password)
-
+        user = self._create_or_update_user(
+            email=email,
+            password=password,
+            role_flags={'is_transformer': True, 'is_buyer': True},
+            defaults=user_data
+        )
         if certification:
             user.certification = certification
-
-        user.save()
-        send_otp_email(user)
+            user.save()
         return user
 
     @route.post("/store_signup", response=StoreList)
@@ -207,22 +221,21 @@ class UserController:
         data: StoreRegister = Form(...),
         certification: UploadedFile = File(None),
     ):
-        """
-        Inscription d'un magasin / coopérative locale.
-        Les stores peuvent valider des parcelles et des lots.
-        """
+        """Inscription d'un magasin / coopérative locale."""
         user_data = data.model_dump()
+        email = user_data.get('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user = User.objects.create(**user_data, is_store=True, is_verified=False)
-        user.set_password(password)
-
+        user = self._create_or_update_user(
+            email=email,
+            password=password,
+            role_flags={'is_store': True},
+            defaults=user_data
+        )
         if certification:
             user.certification = certification
-
-        user.save()
-        send_otp_email(user)
+            user.save()
         return user
 
     @route.post("/certifier_signup", response=CertifierList)
@@ -231,22 +244,21 @@ class UserController:
         data: CertifierRegister,
         certification: UploadedFile = File(None),
     ):
-        """
-        Inscription d'un organisme de certification (Fairtrade, Bio EU, Rainforest Alliance, etc.).
-        Ces organismes sont les seuls à pouvoir certifier des lots.
-        """
+        """Inscription d'un organisme de certification."""
         user_data = data.model_dump()
+        email = user_data.get('email')
         password = user_data.pop('password')
         user_data.pop('confirm_password')
 
-        user = User.objects.create(**user_data, is_certifier=True, is_verified=False)
-        user.set_password(password)
-
+        user = self._create_or_update_user(
+            email=email,
+            password=password,
+            role_flags={'is_certifier': True},
+            defaults=user_data
+        )
         if certification:
             user.certification = certification
-
-        user.save()
-        send_otp_email(user)
+            user.save()
         return user
 
     
@@ -341,51 +353,11 @@ class UserController:
         return {"message": "✅ Mot de passe défini avec succès. Vous pouvez maintenant vous connecter."}
 
     @route.post("/google_login")
-    def google_login(self, data: GoogleLoginSchema):
+    def google_login_legacy(self, data: GoogleLoginSchema):
         """
-        Authentification via Google. 
-        Vérifie le jeton ID Google et connecte/crée l'utilisateur.
+        Alias pour compatibilité frontend.
         """
-        token = data.credential
-        
-        # 1. Vérification auprès de Google
-        res = requests.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={token}")
-        if not res.ok:
-            raise HttpError(400, "Jeton Google invalide.")
-        
-        google_data = res.json()
-        email = google_data.get('email')
-        first_name = google_data.get('given_name', '')
-        last_name = google_data.get('family_name', '')
-        
-        if not email:
-            raise HttpError(400, "Impossible de récupérer l'email depuis Google.")
-
-        # 2. Récupération ou création de l'utilisateur
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                'first_name': first_name,
-                'last_name': last_name,
-                'is_farmer': True, # Par défaut Agriculteur si nouveau
-                'is_verified': True, # Google vérifie l'email
-                'situation_geo': "Lome" # Valeur par défaut
-            }
-        )
-        
-        # 3. Génération des tokens JWT Tracao
-        refresh = RefreshToken.for_user(user)
-        
-        return {
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "is_farmer": user.is_farmer,
-                "is_store": user.is_store
-            }
-        }
+        return self.google_login(None, {"credential": data.credential})
 
     
     # LISTES

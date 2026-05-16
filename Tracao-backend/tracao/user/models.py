@@ -89,12 +89,12 @@ class TracaoUser(AbstractBaseUser,PermissionsMixin):
     certification = models.FileField(upload_to='certifications/',blank=True,null=True)
 
     # institution
-    legal_number = models.IntegerField(blank=True,null=True)
-    website = models.CharField(max_length=200,blank=True,null=True)
+    legal_number = models.CharField(max_length=100, blank=True, null=True)
+    website = models.CharField(max_length=200, blank=True, null=True)
 
-    # organistation
-    record_number = models.IntegerField(blank=True,null=True)
-    tax_number = models.IntegerField(blank=True,null=True)
+    # organisation
+    record_number = models.CharField(max_length=100, blank=True, null=True)
+    tax_number = models.CharField(max_length=100, blank=True, null=True)
 
     # Magasin
     store_name = models.CharField(max_length=200,blank=True,null=True)

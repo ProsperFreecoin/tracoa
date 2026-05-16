@@ -11,13 +11,14 @@ import {
   CheckCircle2Icon, XCircleIcon, BellIcon, HelpCircleIcon, InfoIcon,
   CameraIcon, ClockIcon, XIcon, AlertTriangleIcon
 } from "lucide-react";
+import { KycModal } from "../../components/KycModal";
 import { KycStatut } from "../../types";
 
 const KYC_CONFIG: Record<KycStatut, { label: string; color: string; icon: React.ReactNode }> = {
   non_soumis: { label: "KYC non soumis", color: "bg-tracao-border text-tracao-choco-pale", icon: <AlertTriangleIcon size={11} /> },
-  en_attente: { label: "Vérification en cours", color: "bg-amber-100 text-amber-700", icon: <ClockIcon size={11} /> },
-  verifie: { label: "Identité vérifiée ✓", color: "bg-tracao-forest-light text-tracao-forest", icon: <CheckCircle2Icon size={11} /> },
-  rejete: { label: "Vérification rejetée", color: "bg-tracao-error-light text-tracao-error", icon: <XCircleIcon size={11} /> },
+  en_attente: { label: "KYC en attente", color: "bg-amber-100 text-amber-700", icon: <ClockIcon size={11} /> },
+  verifie: { label: "KYC Validé", color: "bg-tracao-forest-light text-tracao-forest", icon: <CheckCircle2Icon size={11} /> },
+  rejete: { label: "KYC Non Validé", color: "bg-tracao-error-light text-tracao-error", icon: <XCircleIcon size={11} /> },
 };
 
 export default function ProfilScreen() {
@@ -32,6 +33,7 @@ export default function ProfilScreen() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showKycModal, setShowKycModal] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
   if (!agriculteur) return null;
@@ -144,11 +146,13 @@ export default function ProfilScreen() {
 
         {/* Alerte KYC si non soumis ou rejeté */}
         {(kycStatut === "non_soumis" || kycStatut === "rejete") && (
-          <div className={`flex items-start gap-3 p-4 rounded-2xl border ${kycStatut === "rejete" ? "bg-tracao-error-light border-tracao-error/20" : "bg-amber-50 border-amber-200"}`}>
+          <button 
+            onClick={() => setShowKycModal(true)}
+            className={`flex items-start text-left w-full gap-3 p-4 rounded-2xl border transition-all active:scale-[0.98] ${kycStatut === "rejete" ? "bg-tracao-error-light border-tracao-error/20 hover:bg-tracao-error/10" : "bg-amber-50 border-amber-200 hover:bg-amber-100"}`}>
             <AlertTriangleIcon size={18} className={kycStatut === "rejete" ? "text-tracao-error shrink-0 mt-0.5" : "text-amber-600 shrink-0 mt-0.5"} />
-            <div>
+            <div className="flex-1">
               <p className={`text-xs font-bold ${kycStatut === "rejete" ? "text-tracao-error" : "text-amber-700"}`}>
-                {kycStatut === "rejete" ? "Vérification rejetée" : "Identité non vérifiée"}
+                {kycStatut === "rejete" ? "KYC Non Validé" : "Identité non vérifiée"}
               </p>
               <p className={`text-[11px] mt-0.5 ${kycStatut === "rejete" ? "text-tracao-error/80" : "text-amber-600"}`}>
                 {kycStatut === "rejete"
@@ -156,7 +160,8 @@ export default function ProfilScreen() {
                   : "Complétez la vérification KYC pour accéder à toutes les fonctionnalités."}
               </p>
             </div>
-          </div>
+            <ChevronRightIcon size={16} className={kycStatut === "rejete" ? "text-tracao-error/40 mt-1.5" : "text-amber-400 mt-1.5"} />
+          </button>
         )}
 
         {/* Informations personnelles */}
@@ -211,33 +216,6 @@ export default function ProfilScreen() {
             </div>
           </section>
         )}
-
-        {/* Identifiants système */}
-        <section>
-          <h2 className="text-xs font-bold text-tracao-choco-pale uppercase tracking-widest mb-2 px-1">Identifiants système</h2>
-          <div className="bg-tracao-cream-light border border-tracao-border-light rounded-2xl overflow-hidden divide-y divide-tracao-border-light">
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <ShieldCheckIcon size={14} className="text-tracao-cacao shrink-0" />
-                <span className="text-[10px] font-bold text-tracao-choco-pale uppercase tracking-wide">ID Session Mobile</span>
-              </div>
-              <p className="text-xs font-mono text-tracao-choco break-all bg-tracao-cream-mid rounded-lg px-3 py-2 mt-1">
-                {agriculteur.id}
-              </p>
-            </div>
-            {agriculteur.djangoId && (
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <LinkIcon size={14} className="text-blue-600 shrink-0" />
-                  <span className="text-[10px] font-bold text-tracao-choco-pale uppercase tracking-wide">ID Backend (Django)</span>
-                </div>
-                <p className="text-xs font-mono text-tracao-choco break-all bg-blue-50/50 rounded-lg px-3 py-2 mt-1 border border-blue-100">
-                  {agriculteur.djangoId}
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
 
         {/* Paramètres */}
         <section>
@@ -361,7 +339,7 @@ export default function ProfilScreen() {
                   <CheckCircle2Icon size={18} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-tracao-choco">Identité vérifiée</p>
+                  <p className="text-sm font-bold text-tracao-choco">KYC Validé</p>
                   <p className="text-[11px] text-tracao-choco-light mt-0.5 leading-relaxed">Vos documents KYC ont été approuvés avec succès. Vous avez désormais accès à toutes les fonctionnalités.</p>
                   <p className="text-[10px] text-tracao-choco-pale mt-1.5 font-bold uppercase tracking-wider">Il y a 2 heures</p>
                 </div>
@@ -418,6 +396,10 @@ export default function ProfilScreen() {
             <button onClick={() => setShowAboutModal(false)} className="w-full py-3.5 mt-2 bg-tracao-cacao text-white rounded-xl font-bold hover:bg-tracao-choco-mid transition-colors">Fermer</button>
           </div>
         </div>
+      )}
+      {/* Modal KYC */}
+      {showKycModal && (
+        <KycModal onClose={() => setShowKycModal(false)} />
       )}
     </div>
   );

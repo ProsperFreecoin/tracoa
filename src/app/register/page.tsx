@@ -252,6 +252,21 @@ function RegisterContent() {
     }
   };
 
+  const handleResendOTP = async () => {
+    setIsLoading(true);
+    setError("");
+    try {
+      // On ré-appelle handleSignup pour renvoyer l'OTP (le backend gère le cas existant)
+      await handleSignup();
+      // On s'assure de rester à l'étape 3
+      setStep(3);
+    } catch (err: any) {
+      setError("Erreur lors du renvoi du code.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   /* ── Soumission finale (étape 5) ── */
   const handleSubmitKYC = async () => {
     if (!kycRectoFile || !kycVersoFile || !kycSelfieFile) { 
@@ -580,7 +595,10 @@ function RegisterContent() {
               {isLoading ? <DotsLoader /> : "Vérifier le code"}
             </button>
             
-            <button className="text-xs text-tracao-cacao font-bold underline mt-2">
+            <button 
+              onClick={handleResendOTP}
+              disabled={isLoading}
+              className="text-xs text-tracao-cacao font-bold underline mt-2 hover:text-tracao-choco transition-colors disabled:opacity-50">
               Renvoyer le code
             </button>
           </div>

@@ -14,11 +14,20 @@ export const registerUser = async (user: any, role: string, certificationFile?: 
     const headers: Record<string, string> = {};
     let body: any;
 
-    if (certificationFile) {
+    const isOrganization = ["Entreprise de Transformation", "Institution", "Magasin/Boutique"].includes(role);
+
+    if (certificationFile || isOrganization) {
       const formData = new FormData();
-      Object.keys(user).forEach(key => formData.append(key, user[key]));
-      formData.append("certification", certificationFile);
+      Object.keys(user).forEach(key => {
+        if (user[key] !== undefined && user[key] !== null) {
+          formData.append(key, user[key]);
+        }
+      });
+      if (certificationFile) {
+        formData.append("certification", certificationFile);
+      }
       body = formData;
+      // Note: Ne pas mettre Content-Type pour FormData, le navigateur le fera avec le boundary
     } else {
       headers["Content-Type"] = "application/json";
       body = JSON.stringify(user);
