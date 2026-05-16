@@ -246,7 +246,10 @@ function RegisterContent() {
     setError("");
 
     try {
-      await verifyOTP(email, otpCode);
+      const data = await verifyOTP(email, otpCode);
+      if (data.access) {
+        localStorage.setItem("tracao_token", data.access);
+      }
       goNext(); // Vers Step 4 : Photo
     } catch (err: any) {
       setError(err.message || "Code incorrect ou expiré.");

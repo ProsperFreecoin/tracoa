@@ -332,7 +332,23 @@ class UserController:
         user.is_verified = True
         user.save()
 
-        return {"message": "✅ Email vérifié avec succès. Vous pouvez maintenant vous connecter."}
+        # Génération des tokens pour connexion automatique
+        from ninja_jwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+
+        return {
+            "message": "✅ Email vérifié avec succès.",
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "is_farmer": user.is_farmer,
+                "is_store": user.is_store,
+                "first_name": user.first_name,
+                "last_name": user.last_name
+            }
+        }
 
     @route.post("/magic-link/set-password")
     def set_password_magic_link(self, data: SetPasswordMagicLinkSchema):
