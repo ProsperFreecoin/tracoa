@@ -71,7 +71,16 @@ class StockController:
     def update_parcel(self, parcel_id: str, data: ParcelUpdateSchema):
         """Met à jour une parcelle (coordonnées, superficie, statut)."""
         parcel = get_object_or_404(Parcel, id=parcel_id)
-        for field, value in data.model_dump(exclude_none=True).items():
+        
+        # Sécurité : Seul un magasin peut modifier le statut
+        if data.status:
+            if not data.store_id:
+                raise HttpError(403, "Vous devez fournir un store_id pour modifier le statut.")
+            store = get_object_or_404(TracaoUser, id=data.store_id, is_store=True)
+            parcel.validated_by = store
+
+        update_data = data.model_dump(exclude_none=True, exclude={'store_id'})
+        for field, value in update_data.items():
             setattr(parcel, field, value)
         parcel.save()
         return parcel
@@ -156,7 +165,16 @@ class StockController:
     def update_batch(self, batch_id: str, data: BatchUpdateSchema):
         """Met à jour un lot (quantité réelle, statut)."""
         batch = get_object_or_404(Batch, id=batch_id)
-        for field, value in data.model_dump(exclude_none=True).items():
+        
+        # Sécurité : Seul un magasin peut modifier le statut
+        if data.status:
+            if not data.store_id:
+                raise HttpError(403, "Vous devez fournir un store_id pour modifier le statut.")
+            store = get_object_or_404(TracaoUser, id=data.store_id, is_store=True)
+            batch.validated_by = store
+
+        update_data = data.model_dump(exclude_none=True, exclude={'store_id'})
+        for field, value in update_data.items():
             setattr(batch, field, value)
         batch.save()
         return batch

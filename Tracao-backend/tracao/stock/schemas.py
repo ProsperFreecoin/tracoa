@@ -22,6 +22,7 @@ class ParcelUpdateSchema(Schema):
     gps_coordinates: Optional[List[Dict[str, Any]]] = None
     area: Optional[float] = None
     status: Optional[str] = None
+    store_id: Optional[int] = None  # Requis si on modifie le statut
 
 class ParcelResponseSchema(ModelSchema):
     farmer_email: Optional[str] = None
@@ -62,6 +63,7 @@ class BatchUpdateSchema(Schema):
     actual_quantity: Optional[float] = None
     status: Optional[str] = None
     estimated_quantity: Optional[float] = None
+    store_id: Optional[int] = None  # Requis si on modifie le statut
 
 class BatchResponseSchema(ModelSchema):
     farmer_email: Optional[str] = None
