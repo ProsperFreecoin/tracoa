@@ -32,7 +32,7 @@ class FarmerBuyerRegister(Schema):
     """Inscription d'un agriculteur ou acheteur individuel."""
     first_name: str
     last_name: str
-    situation_geo: str
+    situation_geo: Optional[str] = "Lome"
 
     email: str
     phone_number: str

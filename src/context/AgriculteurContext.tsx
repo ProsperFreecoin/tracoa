@@ -43,11 +43,13 @@ export const AgriculteurProvider = ({ children }: { children: ReactNode }) => {
               prenom: user.first_name || "",
               email: user.email,
               telephone: user.phone_number,
-              region: user.city,
+              region: user.situation_geo,
               certifie: user.is_verified,
               secteur: user.is_farmer ? "Agriculteur" : 
                        user.is_store ? "Magasin/Boutique" : 
-                       user.is_transformer ? "Entreprise de Transformation" : "Institution"
+                       user.is_transformer ? "Entreprise de Transformation" : 
+                       user.is_certifier ? "Organisme de Certification" : "Institution",
+              kycStatut: user.kyc_document?.status?.toLowerCase() || 'non_soumis'
             };
             setAgriculteur(mappedAgri);
             localStorage.setItem('tracao_user', JSON.stringify(mappedAgri));

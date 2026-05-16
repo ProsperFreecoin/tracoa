@@ -185,11 +185,14 @@ function RegisterContent() {
     setError("");
 
     try {
+      const cleanPhone = (telephone || ptcNumber).replace(/\s/g, '');
+      
       let userData: any = {
         email,
         password,
         confirm_password: confirmPassword,
-        phone_number: telephone || ptcNumber,
+        phone_number: cleanPhone,
+        situation_geo: "Lome", // Valeur par défaut requise par le schéma backend
       };
 
       if (secteur === "Agriculteur" || secteur === "Acheteur Privé") {
@@ -528,18 +531,20 @@ function RegisterContent() {
                       localStorage.setItem("tracao_token", tokens.access);
                       const user = await getCurrentUser();
                       if (user) {
-                        const mappedAgri = {
+                        const mappedAgri: Agriculteur = {
                           id: user.id.toString(),
                           djangoId: user.id,
                           nom: user.last_name || user.org_name || "Nom",
                           prenom: user.first_name || "",
                           email: user.email,
                           telephone: user.phone_number,
-                          region: user.city,
+                          region: user.situation_geo,
                           certifie: user.is_verified,
                           secteur: user.is_farmer ? "Agriculteur" : 
-                                   user.is_store ? "Magasinier" : 
-                                   user.is_transformer ? "Entreprise de Transformation" : "Institution"
+                                   user.is_store ? "Magasin/Boutique" : 
+                                   user.is_transformer ? "Entreprise de Transformation" : 
+                                   user.is_certifier ? "Organisme de Certification" : "Institution",
+                          kycStatut: user.kyc_document?.status?.toLowerCase() || 'non_soumis'
                         };
                         await connecter(mappedAgri as any, tokens.access);
                         router.push("/");
