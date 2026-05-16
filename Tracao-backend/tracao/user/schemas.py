@@ -118,56 +118,70 @@ class CreateTransporter(Schema):
 
 # SCHEMAS DE RÉPONSE (LISTES)
 
+class BaseUserResponse(ModelSchema):
+    phone_number: Optional[str] = None
+    country: Optional[str] = None
 
-class FarmerList(ModelSchema):
+    @staticmethod
+    def resolve_phone_number(obj):
+        return str(obj.phone_number) if getattr(obj, 'phone_number', None) else None
+
+    @staticmethod
+    def resolve_country(obj):
+        if not getattr(obj, 'country', None):
+            return None
+        # obj.country peut être un objet Country. On prend son code ou son nom.
+        return str(obj.country)
+
+class FarmerList(BaseUserResponse):
     class Meta:
         model = TracaoUser
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_number',
                   'country', 'situation_geo', 'cooperative_name', 'is_verified']
 
 
-class BuyerList(ModelSchema):
+class BuyerList(BaseUserResponse):
     class Meta:
         model = TracaoUser
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_number',
                   'country', 'situation_geo', 'is_verified']
 
 
-class TransporterList(ModelSchema):
+class TransporterList(BaseUserResponse):
     class Meta:
         model = TracaoUser
         fields = ['id', 'first_name', 'last_name', 'email', 'phone_number',
                   'country', 'hired_by', 'is_verified']
 
 
-class CompanyList(ModelSchema):
+class CompanyList(BaseUserResponse):
     class Meta:
         model = TracaoUser
         fields = ['id', 'org_name', 'email', 'country', 'address',
                   'tax_number', 'record_number', 'is_verified']
 
 
-class InstitutionList(ModelSchema):
+class InstitutionList(BaseUserResponse):
     class Meta:
         model = TracaoUser
         fields = ['id', 'org_name', 'email', 'country', 'address',
                   'legal_number', 'website', 'is_verified']
 
 
-class StoreList(ModelSchema):
+class StoreList(BaseUserResponse):
     class Meta:
         model = TracaoUser
         fields = ['id', 'store_name', 'email', 'country', 'store_address', 'is_verified']
 
 
-class CertifierList(ModelSchema):
+class CertifierList(BaseUserResponse):
     """Organisme de certification — exposé dans les réponses de lot certifié."""
     class Meta:
         model = TracaoUser
         fields = ['id', 'org_name', 'email', 'country', 'address', 'website', 'is_verified']
 
 
-class UserProfileSchema(ModelSchema):
+class UserProfileSchema(BaseUserResponse):
     """Profil complet d'un utilisateur — tous les rôles et données."""
     class Meta:
         model = TracaoUser
@@ -192,7 +206,7 @@ class KYCDocumentSchema(ModelSchema):
         model = KYCDocument
         fields = ['id', 'status', 'submitted_at', 'reviewed_at', 'rejection_reason']
 
-class UserSchema(ModelSchema):
+class UserSchema(BaseUserResponse):
     class Meta:
         model = TracaoUser
         fields = [
