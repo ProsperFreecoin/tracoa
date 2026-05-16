@@ -1,11 +1,6 @@
 import pydantic
-<<<<<<< HEAD
-from ninja import ModelSchema,Schema
-from user.models import TracaoUser, KYCDocument, Notification
-=======
 from ninja import ModelSchema, Schema
-from user.models import TracaoUser, KYCDocument
->>>>>>> 59cd45a21426785237ca42a4a6c56858a61b8253
+from user.models import TracaoUser, KYCDocument, Notification
 from pydantic import Field
 from typing import Optional
 
@@ -203,7 +198,7 @@ class UserSchema(ModelSchema):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'phone_number', 
             'is_farmer', 'is_buyer', 'is_transformer', 'is_private_buyer', 
-            'is_store', 'is_transporter', 'is_verified', 'city', 'country',
+            'is_store', 'is_transporter', 'is_verified', 'situation_geo', 'country',
             'org_name', 'person_to_call', 'ptc_number', 'record_number',
             'tax_number', 'legal_number', 'website', 'store_name', 'store_address'
         ]

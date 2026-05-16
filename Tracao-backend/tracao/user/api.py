@@ -4,17 +4,9 @@ from ninja import File, Form
 from ninja.files import UploadedFile
 from ninja_jwt.authentication import JWTAuth
 from user.schemas import (
-<<<<<<< HEAD
-    FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister, CreateTransporter,
-    KYCDocumentSchema, FarmerList, BuyerList, CompanyList, InstitutionList, StoreList, TransporterList,
-    VerifyOTPSchema, SetPasswordMagicLinkSchema, UserSchema, NotificationSchema
-=======
-    FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister,
-    CreateTransporter, CertifierRegister,
-    KYCDocumentSchema, FarmerList, BuyerList, CompanyList, InstitutionList,
-    StoreList, TransporterList, CertifierList,
-    VerifyOTPSchema, SetPasswordMagicLinkSchema, UserProfileSchema,
->>>>>>> 59cd45a21426785237ca42a4a6c56858a61b8253
+    FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister, CreateTransporter, CertifierRegister,
+    KYCDocumentSchema, FarmerList, BuyerList, CompanyList, InstitutionList, StoreList, TransporterList, CertifierList,
+    VerifyOTPSchema, SetPasswordMagicLinkSchema, UserProfileSchema, UserSchema, NotificationSchema
 )
 from user.models import TracaoUser, KYCDocument, OTP, MagicLink, Notification
 from user.utils import send_otp_email, send_magic_link_email
@@ -27,7 +19,6 @@ User = TracaoUser
 
 @api_controller('/users', auth=None)
 class UserController:
-<<<<<<< HEAD
     @route.get("/me", auth=IsAuthenticated(), response=UserSchema)
     def me(self, request):
         return request.user
@@ -43,10 +34,6 @@ class UserController:
         notif.save()
         return {"success": True}
 
-    @route.post("/farmer_signup",response = FarmerList)
-    def register_farmer(self,user:FarmerBuyerRegister):
-=======
-
     
     # INSCRIPTIONS
     
@@ -54,7 +41,6 @@ class UserController:
     @route.post("/farmer_signup", response=FarmerList)
     def register_farmer(self, user: FarmerBuyerRegister):
         """Inscription d'un agriculteur. Envoie un OTP de vérification par email."""
->>>>>>> 59cd45a21426785237ca42a4a6c56858a61b8253
         user_data = user.model_dump()
         email = user_data.get('email')
         password = user_data.pop('password')
