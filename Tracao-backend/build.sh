@@ -8,9 +8,6 @@ pip install -r requirements.txt
 echo "🎨 Collecte des fichiers statiques..."
 python tracao/manage.py collectstatic --no-input
 
-echo "🚨 ATTENTION: Réinitialisation complète de la BD (À SUPPRIMER APRÈS CE DÉPLOIEMENT) !"
-python tracao/reset_db.py
-
 echo "🗄️ Application des migrations (création des tables)..."
 python tracao/manage.py migrate
 
