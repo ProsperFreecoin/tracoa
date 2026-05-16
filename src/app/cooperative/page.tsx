@@ -195,15 +195,17 @@ export default function MagasinierDashboard() {
               Êtes-vous sûr de vouloir {modalType === "approve" ? "approuvé" : "rejeter"} cet lot ?
             </p>
 
-            <div className="mb-8">
-              <label className="block text-xs font-bold opacity-50 mb-2">Donner une raison</label>
-              <textarea 
-                value={motif}
-                onChange={(e) => setMotif(e.target.value)}
-                placeholder="Entrer un commentaire"
-                className="w-full bg-[#F5F5F5] rounded-xl p-4 outline-none focus:ring-1 focus:ring-[#4A3018] min-h-[100px] text-sm font-semibold"
-              />
-            </div>
+            {modalType === "reject" && (
+              <div className="mb-8">
+                <label className="block text-xs font-bold opacity-50 mb-2">Donner une raison</label>
+                <textarea 
+                  value={motif}
+                  onChange={(e) => setMotif(e.target.value)}
+                  placeholder="Entrer un commentaire"
+                  className="w-full bg-[#F5F5F5] rounded-xl p-4 outline-none focus:ring-1 focus:ring-[#4A3018] min-h-[100px] text-sm font-semibold"
+                />
+              </div>
+            )}
 
             <div className="flex gap-3 justify-end">
               <button 

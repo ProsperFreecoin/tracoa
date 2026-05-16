@@ -223,7 +223,16 @@ export const pushLotToDjangoBlockchain = async (
  */
 export const getCurrentUser = async (): Promise<any> => {
   try {
-    const res = await fetchWithAuth("/users/me");
+    const token = getAuthToken();
+    if (!token) return null;
+
+    // Decode JWT to get user_id
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const userId = payload.user_id;
+
+    if (!userId) return null;
+
+    const res = await fetchWithAuth(`/users/${userId}`);
 
     if (!res.ok) {
       if (res.status === 401) {
