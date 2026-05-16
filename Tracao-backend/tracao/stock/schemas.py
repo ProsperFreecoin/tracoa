@@ -66,6 +66,7 @@ class BatchUpdateSchema(Schema):
     store_id: Optional[int] = None  # Requis si on modifie le statut
 
 class BatchResponseSchema(ModelSchema):
+    farmer_id: Optional[int] = None
     farmer_email: Optional[str] = None
     farmer_name: Optional[str] = None
     parcel_name: Optional[str] = None
@@ -73,9 +74,13 @@ class BatchResponseSchema(ModelSchema):
 
     class Meta:
         model = Batch
-        fields = ['id', 'unique_code', 'crop_type', 'season', 'farmer_id',
+        fields = ['id', 'unique_code', 'crop_type', 'season',
                   'estimated_quantity', 'actual_quantity', 'status',
                   'blockchain_tx_hash', 'created_at', 'updated_at']
+
+    @staticmethod
+    def resolve_farmer_id(obj):
+        return obj.farmer_id
 
     @staticmethod
     def resolve_farmer_email(obj):
