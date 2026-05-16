@@ -20,12 +20,12 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleAuthSuccess = async (user: any) => {
+  const handleAuthSuccess = async (user: any, djangoProfile?: any) => {
     // Check if profile exists in Firestore
     const docRef = doc(db, "agriculteurs", user.uid);
     const docSnap = await getDoc(docRef);
 
-    let agriProfile;
+    let agriProfile: any;
     if (docSnap.exists()) {
       agriProfile = docSnap.data() as any;
     } else {
@@ -38,7 +38,12 @@ export default function LoginScreen() {
         secteur: "Non défini",
         certifie: false,
       };
-      await setDoc(docRef, agriProfile);
+    }
+
+    // Fusionner avec les infos Django si disponibles
+    if (djangoProfile) {
+      agriProfile.djangoId = djangoProfile.id;
+      agriProfile.isVerified = djangoProfile.is_verified;
     }
 
     await connecter(agriProfile);
@@ -61,17 +66,18 @@ export default function LoginScreen() {
       try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         user = userCredential.user;
-        await handleAuthSuccess(user);
+        await handleAuthSuccess(user, tokens.user);
       } catch (fbErr) {
         console.warn("Firebase login failed, using Django session only:", fbErr);
         // Si Firebase échoue mais Django a réussi, on crée un profil minimal local
         const minimalProfile = {
-          id: tokens.user_id || email, // On espère que le token contient l'ID
+          id: tokens.user?.id?.toString() || tokens.user_id || email,
+          djangoId: tokens.user?.id,
           email,
-          nom: "Utilisateur",
-          prenom: "",
-          certifie: false,
-          secteur: "Inconnu"
+          nom: tokens.user?.last_name || "Utilisateur",
+          prenom: tokens.user?.first_name || "",
+          certifie: !!tokens.user?.certification,
+          secteur: tokens.user?.is_farmer ? "Agriculteur" : "Inconnu"
         };
         await connecter(minimalProfile as any, tokens.access);
       }

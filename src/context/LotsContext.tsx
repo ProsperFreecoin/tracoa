@@ -6,6 +6,8 @@ import { getDoc } from "firebase/firestore";
 import { collection, getDocs, query, where, setDoc, doc } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { useAgriculteur } from './AgriculteurContext';
+import { createParcelInDjango, createBatchInDjango } from '../lib/djangoApi';
 
 interface LotsContextType {
   lots: Lot[];
@@ -28,6 +30,7 @@ interface LotsContextType {
 const LotsContext = createContext<LotsContextType | undefined>(undefined);
 
 export const LotsProvider = ({ children }: { children: ReactNode }) => {
+  const { agriculteur } = useAgriculteur();
   const [lots, setLots] = useState<Lot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +92,34 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
       };
 
       await setDoc(lotRef, lot);
+
+      // --- SYNCHRONISATION DJANGO ---
+      if (agriculteur && agriculteur.djangoId) {
+        try {
+          console.log("Synchronisation avec Django...");
+          // 1. Créer la parcelle (requis pour le batch)
+          const parcelId = await createParcelInDjango(
+            agriculteur.djangoId,
+            `Parcelle ${lot.lotId}`,
+            lot.latitude,
+            lot.longitude
+          );
+          
+          // 2. Créer le lot lié à cette parcelle
+          await createBatchInDjango({
+            farmer_id: agriculteur.djangoId,
+            parcel_id: parcelId,
+            season: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+            crop_type: lot.typeProduit,
+            estimated_quantity: lot.poidsKg,
+            notes: lot.notesQualite
+          });
+          
+          console.log("✅ Lot synchronisé avec Django avec succès !");
+        } catch (djangoError) {
+          console.error("Erreur de synchronisation Django (optionnel pour le moment):", djangoError);
+        }
+      }
 
       // Create notification for the cooperative if one was selected
       if (params.cooperativeId) {

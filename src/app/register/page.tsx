@@ -268,6 +268,7 @@ function RegisterContent() {
       // 3. Finaliser localement
       await connecter({
         id: djangoUserId.toString(),
+        djangoId: djangoUserId,
         nom: nom || orgName || storeName,
         prenom: prenom || personToCall,
         email,

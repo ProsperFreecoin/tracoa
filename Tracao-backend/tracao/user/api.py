@@ -2,6 +2,7 @@ from ninja_extra import api_controller, route
 from ninja_extra.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from ninja import File, Form
 from ninja.files import UploadedFile
+from ninja_jwt.authentication import JWTAuth
 from user.schemas import (
     FarmerBuyerRegister, CompanyRegister, InstitutionRegister, StoreRegister,
     CreateTransporter, CertifierRegister,
@@ -285,6 +286,11 @@ class UserController:
     def get_user_profile(self, user_id: int):
         """Récupère le profil complet d'un utilisateur par son ID."""
         return get_object_or_404(User, id=user_id)
+
+    @route.get("/me", response=UserProfileSchema, auth=JWTAuth())
+    def get_my_profile(self, request):
+        """Récupère le profil de l'utilisateur actuellement connecté via JWT."""
+        return request.user
 
     
     # KYC
