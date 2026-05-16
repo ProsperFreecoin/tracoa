@@ -20,7 +20,7 @@ const coopNavCategories = [
   {
     title: "GESTION",
     items: [
-      { href: "/cooperative", icon: BuildingIcon, label: "Réception Lots" },
+      { href: "/cooperative", icon: ListIcon, label: "Lots à vérifier" },
       { href: "/cooperative/transferts", icon: ArrowRightLeftIcon, label: "Expéditions" },
       { href: "/cooperative/membres", icon: UsersIcon, label: "Producteurs" },
     ]

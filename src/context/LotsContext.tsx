@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Lot, LotStatut, TypeProduit, Notification, Cooperative } from '../types';
 import { useAgriculteur } from './AgriculteurContext';
 import { getLotsForProducer, getLotsForCooperative, pushLotToDjangoBlockchain } from '../lib/djangoApi';
+import { NotificationService } from '../lib/notifications';
 
 interface LotsContextType {
   lots: Lot[];
@@ -19,7 +20,7 @@ interface LotsContextType {
   chargerLotsProducteur: (producerId: number) => Promise<void>;
   chargerLotsCooperative: (cooperativeId: string) => Promise<void>;
   trouverParId: (lotId: string) => Lot | undefined;
-  accepterLot: (lotId: string, coopDjangoId: number, producerDjangoId: number, producerEmail: string) => Promise<void>;
+  accepterLot: (lotId: string, magasinierDjangoId: number, producerDjangoId: number, producerEmail: string, raison?: string) => Promise<void>;
   refuserLot: (lotId: string, motifRejet: string) => Promise<void>;
 }
 
@@ -181,7 +182,7 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
     return lots.find(l => l.lotId === lotId);
   };
 
-  const accepterLot = async (lotId: string, magasinierDjangoId: number, producerDjangoId: number, producerEmail: string) => {
+  const accepterLot = async (lotId: string, magasinierDjangoId: number, producerDjangoId: number, producerEmail: string, raison?: string) => {
     try {
       const lot = lots.find(l => l.lotId === lotId);
       if (!lot) return;
@@ -209,8 +210,23 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
 
       // Mettre à jour l'état local
       setLots(prev => prev.map(l => 
-        l.lotId === lotId ? { ...l, statut: 'transfere' as const, syncBlockchain: true } : l
+        l.lotId === lotId ? { ...l, statut: 'transfere' as const, syncBlockchain: true, notesQualite: raison || l.notesQualite } : l
       ));
+
+      // Notifications
+      await NotificationService.sendLocalNotification(
+        "Lot Approuvé",
+        `Le lot ${lotId} a été approuvé avec succès.`
+      );
+
+      if (producerEmail) {
+        await NotificationService.sendEmail(
+          producerEmail,
+          "Votre lot a été approuvé",
+          `Bonjour, le lot ${lotId} a été approuvé par le magasin. Commentaire: ${raison || "Aucun commentaire"}`
+        );
+      }
+
     } catch (error) {
       console.error("Erreur accepterLot:", error);
       throw error;
@@ -219,6 +235,11 @@ export const LotsProvider = ({ children }: { children: ReactNode }) => {
 
   const refuserLot = async (lotId: string, motifRejet: string) => {
     setLots(prev => prev.map(l => l.lotId === lotId ? { ...l, statut: 'rejete', notesQualite: motifRejet } : l));
+    
+    await NotificationService.sendLocalNotification(
+      "Lot Rejeté",
+      `Le lot ${lotId} a été rejeté.`
+    );
   };
 
   const totalLots = lots.length;
