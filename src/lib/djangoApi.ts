@@ -1,6 +1,6 @@
 import { Agriculteur, Lot } from "../types";
 
-export const DJANGO_API_BASE = "https://tracoa.onrender.com/api";
+export const DJANGO_API_BASE = process.env.NEXT_PUBLIC_API_URL || "https://tracoa.onrender.com/api";
 
 /** Enregistre un utilisateur dans Django selon son rôle */
 export const registerUser = async (user: any, role: string, certificationFile?: File): Promise<any> => {

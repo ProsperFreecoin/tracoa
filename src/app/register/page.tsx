@@ -178,21 +178,31 @@ function RegisterContent() {
     return true;
   };
 
-  /* ── Inscription Backend (Django) ── */
+  const parseError = (err: any): string => {
+    const raw = err?.message || '';
+    try {
+      if (raw.startsWith('{') || raw.startsWith('[')) {
+        const data = JSON.parse(raw);
+        if (data.email) return 'Cet email est déjà utilisé.';
+        if (data.detail) return data.detail;
+        return Object.values(data).flat().join(' ');
+      }
+    } catch { }
+    return raw || 'Erreur lors de l\'inscription.';
+  };
+
   const handleSignup = async () => {
     if (!validateStep2()) return;
     setIsLoading(true);
-    setError("");
-
+    setError('');
     try {
       const cleanPhone = (telephone || ptcNumber).replace(/\s/g, '');
-      
       let userData: any = {
         email,
         password,
         confirm_password: confirmPassword,
         phone_number: cleanPhone,
-        situation_geo: "Lome", // Valeur par défaut requise par le schéma backend
+        situation_geo: 'Lome',
       };
 
       if (secteur === "Agriculteur" || secteur === "Acheteur Privé") {
@@ -204,36 +214,19 @@ function RegisterContent() {
           }
         }
       } else if (secteur === "Entreprise de Transformation") {
-        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, record_number: recordNumber || null, tax_number: taxNumber || null, address, country };
+        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, phone_number: ptcNumber, record_number: recordNumber || null, tax_number: taxNumber || null, address, country };
       } else if (secteur === "Institution") {
-        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, legal_number: legalNumber || null, website: website || null, address, country };
+        userData = { ...userData, org_name: orgName, person_to_call: personToCall, ptc_number: ptcNumber, phone_number: ptcNumber, legal_number: legalNumber || null, website: website || null, address, country };
       } else if (secteur === "Magasin/Boutique") {
-        userData = { ...userData, store_name: storeName, store_address: storeAddress, person_to_call: personToCall, ptc_number: ptcNumber, address, country };
+        userData = { ...userData, store_name: storeName, store_address: storeAddress, person_to_call: personToCall, ptc_number: ptcNumber, phone_number: ptcNumber, address, country };
       }
 
       const res = await registerUser(userData, secteur, certificationFile || undefined);
       setDjangoUserId(res.id);
-      goNext(); // Vers Step 3 : OTP
+      goNext();
     } catch (err: any) {
-      let msg = "Erreur lors de l'inscription.";
-      const rawMsg = err.message || "";
-      
-      try {
-        // Tenter de parser si c'est du JSON
-        if (rawMsg.startsWith("{") || rawMsg.startsWith("[")) {
-          const errorData = JSON.parse(rawMsg);
-          if (errorData.email) msg = "Cet email est déjà utilisé.";
-          else if (errorData.detail) msg = errorData.detail;
-          else msg = Object.values(errorData).flat().join(" ");
-        } else {
-          // Sinon afficher le message brut (ex: Erreur 500, HTML, etc)
-          msg = rawMsg || msg;
-        }
-      } catch (e) {
-        msg = rawMsg || msg;
-      }
-      setError(msg);
-      console.error("Signup Error:", err);
+      setError(parseError(err));
+      console.error('Signup Error:', err);
     } finally {
       setIsLoading(false);
     }
